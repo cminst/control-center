@@ -121,6 +121,14 @@
                             <h3>Log a Command</h3>
                             <form id="command-form" class="command-form">
                                 <div class="form-group">
+                                    <label for="command-name">Command Name</label>
+                                    <input
+                                        type="text"
+                                        id="command-name"
+                                        placeholder="e.g. Build production assets"
+                                    />
+                                </div>
+                                <div class="form-group">
                                     <label for="command-text">Command</label>
                                     <input
                                         type="text"
@@ -250,6 +258,14 @@
                                 class="command-form"
                             >
                                 <div class="form-group">
+                                    <label for="project-command-name">Command Name</label>
+                                    <input
+                                        type="text"
+                                        id="project-command-name"
+                                        placeholder="e.g. Run unit test suite"
+                                    />
+                                </div>
+                                <div class="form-group">
                                     <label for="project-command-text">Command</label>
                                     <input
                                         type="text"
@@ -314,7 +330,7 @@
                         <div class="detail-header-text">
                             <p class="breadcrumb muted" id="command-breadcrumb">
                             </p>
-                            <h3>Command Details</h3>
+                            <h3 id="command-detail-title">Command Details</h3>
                         </div>
                         <div class="detail-header-actions">
                             <button

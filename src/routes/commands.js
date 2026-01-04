@@ -119,7 +119,7 @@ router.get("/:id", requireAuth, async (req, res) => {
 
 router.post("/", requireAuth, async (req, res) => {
   try {
-    const { command, output, note, projectId } = req.body;
+    const { name, command, output, note, projectId } = req.body;
     const ownerId = req.session.userId;
 
     if (!command || !output) {
@@ -127,6 +127,9 @@ router.post("/", requireAuth, async (req, res) => {
         .status(400)
         .json({ error: "Command and output are required" });
     }
+
+    const nameValue =
+      typeof name === "string" && name.trim() ? name.trim() : null;
 
     let projectIdValue = null;
     if (projectId) {
@@ -144,10 +147,10 @@ router.post("/", requireAuth, async (req, res) => {
     const db = await getDb();
     const result = await db.run(
       `
-        INSERT INTO commands (owner_id, project_id, command_text, output_text, note_markdown)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO commands (owner_id, project_id, name, command_text, output_text, note_markdown)
+        VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [ownerId, projectIdValue, command, output, note || null],
+      [ownerId, projectIdValue, nameValue, command, output, note || null],
     );
 
     const created = await db.get(
@@ -170,7 +173,7 @@ router.post("/", requireAuth, async (req, res) => {
 router.put("/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { command, output, note } = req.body;
+    const { name, command, output, note } = req.body;
     const ownerId = req.session.userId;
 
     const db = await getDb();
@@ -182,13 +185,16 @@ router.put("/:id", requireAuth, async (req, res) => {
       return res.status(403).json({ error: "Not authorized" });
     }
 
+    const nameValue =
+      typeof name === "string" && name.trim() ? name.trim() : null;
+
     await db.run(
       `
         UPDATE commands
-        SET command_text = ?, output_text = ?, note_markdown = ?, updated_at = CURRENT_TIMESTAMP
+        SET name = ?, command_text = ?, output_text = ?, note_markdown = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `,
-      [command, output, note, id],
+      [nameValue, command, output, note, id],
     );
 
     const updated = await db.get(

@@ -195,7 +195,7 @@ router.get("/:id/commands", requireAuth, async (req, res) => {
 router.post("/:id/commands", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { command, output, note } = req.body;
+    const { name, command, output, note } = req.body;
     const ownerId = req.session.userId;
 
     if (!command || !output) {
@@ -203,6 +203,9 @@ router.post("/:id/commands", requireAuth, async (req, res) => {
         .status(400)
         .json({ error: "Command and output are required" });
     }
+
+    const nameValue =
+      typeof name === "string" && name.trim() ? name.trim() : null;
 
     const db = await getDb();
     const project = await db.get(
@@ -215,10 +218,10 @@ router.post("/:id/commands", requireAuth, async (req, res) => {
 
     const result = await db.run(
       `
-        INSERT INTO commands (owner_id, project_id, command_text, output_text, note_markdown)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO commands (owner_id, project_id, name, command_text, output_text, note_markdown)
+        VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [ownerId, id, command, output, note || null],
+      [ownerId, id, nameValue, command, output, note || null],
     );
 
     const created = await db.get(

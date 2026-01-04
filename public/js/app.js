@@ -26,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const projectShareButton = document.getElementById("project-share-button");
   const commandDetailCard = document.getElementById("command-detail-card");
   const commandBreadcrumb = document.getElementById("command-breadcrumb");
+  const commandDetailTitle = document.getElementById("command-detail-title");
   const commandEditButton = document.getElementById("command-edit-button");
   const commandShareButton = document.getElementById("command-share-button");
   const commandDeleteButton = document.getElementById("command-delete-button");
@@ -161,6 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     commandError.textContent = "";
 
+    const name = document.getElementById("command-name").value.trim();
     const command = document.getElementById("command-text").value.trim();
     const output = document.getElementById("command-output").value.trim();
     const note = document.getElementById("command-note").value.trim();
@@ -170,6 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: name || null,
           command,
           output,
           note: note || null,
@@ -225,7 +228,10 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const command = document.getElementById("project-command-text").value.trim();
+    const name = document.getElementById("project-command-name").value.trim();
+    const command = document
+      .getElementById("project-command-text")
+      .value.trim();
     const output = document.getElementById("project-command-output").value.trim();
     const note = document.getElementById("project-command-note").value.trim();
 
@@ -234,6 +240,7 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: name || null,
           command,
           output,
           note: note || null,
@@ -258,6 +265,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (form.id !== "command-edit-form") return;
     event.preventDefault();
 
+    const name = document.getElementById("edit-command-name").value.trim();
     const command = document
       .getElementById("edit-command-text")
       .value.trim();
@@ -276,6 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: name || null,
           command,
           output,
           note: note || null,
@@ -287,6 +296,10 @@ document.addEventListener("DOMContentLoaded", () => {
         activeCommandData = data;
         isEditingCommand = false;
         commandDetailCard.innerHTML = renderCommandDetailCard(data);
+        if (commandDetailTitle) {
+          commandDetailTitle.textContent =
+            data.name && data.name.trim() ? data.name : "Command Details";
+        }
       } else if (errorEl) {
         errorEl.textContent = data.error || "Failed to update command";
       }
@@ -812,6 +825,9 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadCommandDetail(commandId) {
     commandDetailCard.innerHTML = "";
     commandBreadcrumb.textContent = "";
+    if (commandDetailTitle) {
+      commandDetailTitle.textContent = "Command Details";
+    }
     activeCommandId = commandId;
     activeCommandData = null;
     isEditingCommand = false;
@@ -831,6 +847,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       commandDetailCard.innerHTML = renderCommandDetailCard(data);
       activeCommandData = data;
+      if (commandDetailTitle) {
+        commandDetailTitle.textContent =
+          data.name && data.name.trim() ? data.name : "Command Details";
+      }
       commandShareButton.classList.toggle("hidden", !data.is_owner);
       commandEditButton.classList.toggle("hidden", !data.is_owner);
       commandDeleteButton.classList.toggle("hidden", !data.is_owner);
@@ -852,6 +872,9 @@ document.addEventListener("DOMContentLoaded", () => {
       commandShareButton.classList.add("hidden");
       commandEditButton.classList.add("hidden");
       commandDeleteButton.classList.add("hidden");
+      if (commandDetailTitle) {
+        commandDetailTitle.textContent = "Command Details";
+      }
     }
   }
 
@@ -871,7 +894,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderCommandPreviewCard(command, options = {}) {
     const createdAt = formatDate(command.created_at);
-    const snippet = truncateCommandText(command.command_text, 64);
+    const displayName =
+      command.name && command.name.trim() ? command.name : command.command_text;
+    const snippet = truncateCommandText(displayName, 64);
     const ownerLabel =
       options.showOwner && command.owner_username
         ? `Shared by ${command.owner_username}`
@@ -974,6 +999,14 @@ document.addEventListener("DOMContentLoaded", () => {
     return `
       <div class="command-card">
         <form id="command-edit-form" class="command-form">
+          <div class="form-group">
+            <label for="edit-command-name">Command Name</label>
+            <input
+              type="text"
+              id="edit-command-name"
+              value="${escapeHtml(command.name || "")}"
+            />
+          </div>
           <div class="form-group">
             <label for="edit-command-text">Command</label>
             <input
@@ -1091,6 +1124,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!activeCommandData) return;
     isEditingCommand = false;
     commandDetailCard.innerHTML = renderCommandDetailCard(activeCommandData);
+    if (commandDetailTitle) {
+      commandDetailTitle.textContent =
+        activeCommandData.name && activeCommandData.name.trim()
+          ? activeCommandData.name
+          : "Command Details";
+    }
   }
 
   function renderProjectGallery(container, projects, options = {}) {
