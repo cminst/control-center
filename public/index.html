@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Control Center</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,0,0"
+            rel="stylesheet"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.6.1/github-markdown.min.css"
+        />
+        <link rel="stylesheet" href="/css/styles.css" />
+        <link
+            rel="apple-touch-icon"
+            sizes="180x180"
+            href="/apple-touch-icon.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="32x32"
+            href="/favicon-32x32.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="16x16"
+            href="/favicon-16x16.png"
+        />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="manifest" href="/site.webmanifest" />
+        <meta name="theme-color" content="#ffffff" />
+    </head>
+    <body class="auth-view">
+        <div id="auth-container" class="container">
+            <div class="auth-form">
+                <div class="auth-header">
+                    <div>
+                        <center><h1>CC</h1></center>
+                        <p class="auth-subtitle">
+                            Sign in to log command runs, annotate the output, and
+                            share with your team.
+                        </p>
+                    </div>
+                </div>
+                <div class="tabs">
+                    <button id="login-tab" class="tab-btn active">Login</button>
+                    <button id="register-tab" class="tab-btn">Sign Up</button>
+                </div>
+
+                <form id="login-form" class="form">
+                    <div class="form-group">
+                        <label for="login-username">Username</label>
+                        <input type="text" id="login-username" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" required />
+                    </div>
+                    <button type="submit" class="btn primary-btn">Login</button>
+                    <p id="login-error" class="error-message"></p>
+                </form>
+
+                <form id="register-form" class="form hidden">
+                    <div class="form-group">
+                        <label for="register-username">Username</label>
+                        <input type="text" id="register-username" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Password</label>
+                        <input type="password" id="register-password" required />
+                    </div>
+                    <button type="submit" class="btn primary-btn">Sign Up</button>
+                    <p id="register-error" class="error-message"></p>
+                </form>
+            </div>
+        </div>
+
+        <div id="app-container" class="container hidden">
+            <header>
+                <div class="brand">
+                    <div>
+                        <h1>CC</h1>
+                    </div>
+                </div>
+                <div class="user-info">
+                    <span class="user-chip">
+                        <span class="user-dot"></span>
+                        <span id="username-display"></span>
+                    </span>
+                    <button id="logout-btn" class="btn secondary-btn">
+                        Logout
+                    </button>
+                </div>
+            </header>
+
+            <div class="view-header">
+                <h2>Command Control Center</h2>
+                <div class="tabs app-tabs">
+                    <button class="tab-btn active" data-tab="commands">
+                        My Commands
+                    </button>
+                    <button class="tab-btn" data-tab="shared">
+                        Shared With Me
+                    </button>
+                    <button class="tab-btn" data-tab="projects">Projects</button>
+                </div>
+            </div>
+
+            <main>
+                <section id="commands-view" class="tab-view">
+                    <div class="panel-grid">
+                        <div class="card" id="project-command-card">
+                            <h3>Log a Command</h3>
+                            <form id="command-form" class="command-form">
+                                <div class="form-group">
+                                    <label for="command-text">Command</label>
+                                    <input
+                                        type="text"
+                                        id="command-text"
+                                        class="mono-input"
+                                        placeholder="e.g. npm run build"
+                                        autocomplete="off"
+                                        required
+                                    />
+                                </div>
+                                <div class="form-group">
+                                    <label for="command-output">Output</label>
+                                    <textarea
+                                        id="command-output"
+                                        class="mono-input"
+                                        wrap="off"
+                                        placeholder="Paste the terminal output here..."
+                                        required
+                                    ></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="command-note">Notes (Markdown)</label>
+                                    <textarea
+                                        id="command-note"
+                                        placeholder="Add context, links, or next steps..."
+                                    ></textarea>
+                                </div>
+                                <button type="submit" class="btn primary-btn">
+                                    Save Command
+                                </button>
+                                <p id="command-error" class="error-message"></p>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3>My Commands</h3>
+                        <div id="command-gallery" class="command-grid"></div>
+                    </div>
+                </section>
+
+                <section id="shared-view" class="tab-view hidden">
+                    <div>
+                        <h3>Shared Commands</h3>
+                        <div id="shared-command-list" class="command-grid"></div>
+                    </div>
+                    <div>
+                        <h3>Shared Projects</h3>
+                        <div id="shared-project-list" class="project-grid"></div>
+                    </div>
+                </section>
+
+                <section id="projects-view" class="tab-view hidden">
+                    <div class="panel-grid">
+                        <div class="card">
+                            <h3>Create a Project</h3>
+                            <form id="project-form">
+                                <div class="form-group">
+                                    <label for="project-name">Project Name</label>
+                                    <input
+                                        type="text"
+                                        id="project-name"
+                                        placeholder="e.g. Infra experiments"
+                                        required
+                                    />
+                                </div>
+                                <button type="submit" class="btn primary-btn">
+                                    Create Project
+                                </button>
+                                <p id="project-error" class="error-message"></p>
+                            </form>
+                        </div>
+                        <div class="card">
+                            <h3>Project Notes</h3>
+                            <p class="muted">
+                                Share projects to give teammates read-only access
+                                to every command logged inside.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3>Your Projects</h3>
+                        <div id="project-gallery" class="project-grid"></div>
+                    </div>
+                </section>
+
+                <section id="project-detail-view" class="tab-view hidden">
+                    <div class="detail-header">
+                        <button
+                            type="button"
+                            class="icon-button back-button"
+                            data-action="back"
+                            aria-label="Back"
+                        >
+                            <span class="material-symbols-rounded"
+                                >arrow_back</span
+                            >
+                        </button>
+                        <div class="detail-header-text">
+                            <p class="breadcrumb muted" id="project-breadcrumb">
+                                Projects
+                            </p>
+                            <h3 id="project-detail-title"></h3>
+                        </div>
+                        <div class="detail-header-actions">
+                            <button
+                                type="button"
+                                id="project-share-button"
+                                class="icon-button share-button hidden"
+                                data-action="open-share-modal"
+                                data-share-scope="project"
+                                aria-label="Share project"
+                            >
+                                <span class="material-symbols-rounded"
+                                    >share</span
+                                >
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="panel-grid">
+                        <div class="card">
+                            <h3>Log a Command</h3>
+                            <form
+                                id="project-command-form"
+                                class="command-form"
+                            >
+                                <div class="form-group">
+                                    <label for="project-command-text">Command</label>
+                                    <input
+                                        type="text"
+                                        id="project-command-text"
+                                        class="mono-input"
+                                        placeholder="e.g. python3 manage.py test"
+                                        autocomplete="off"
+                                        required
+                                    />
+                                </div>
+                                <div class="form-group">
+                                    <label for="project-command-output">Output</label>
+                                    <textarea
+                                        id="project-command-output"
+                                        class="mono-input"
+                                        wrap="off"
+                                        placeholder="Paste the terminal output here..."
+                                        required
+                                    ></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="project-command-note"
+                                        >Notes (Markdown)</label
+                                    >
+                                    <textarea
+                                        id="project-command-note"
+                                        placeholder="Add context, links, or next steps..."
+                                    ></textarea>
+                                </div>
+                                <button type="submit" class="btn primary-btn">
+                                    Save Command
+                                </button>
+                                <p
+                                    id="project-command-error"
+                                    class="error-message"
+                                ></p>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3>Project Commands</h3>
+                        <div
+                            id="project-command-gallery"
+                            class="command-grid"
+                        ></div>
+                    </div>
+                </section>
+
+                <section id="command-detail-view" class="tab-view hidden">
+                    <div class="detail-header">
+                        <button
+                            type="button"
+                            class="icon-button back-button"
+                            data-action="back"
+                            aria-label="Back"
+                        >
+                            <span class="material-symbols-rounded"
+                                >arrow_back</span
+                            >
+                        </button>
+                        <div class="detail-header-text">
+                            <p class="breadcrumb muted" id="command-breadcrumb">
+                            </p>
+                            <h3>Command Details</h3>
+                        </div>
+                        <div class="detail-header-actions">
+                            <button
+                                type="button"
+                                id="command-edit-button"
+                                class="icon-button edit-button hidden"
+                                data-action="edit-command"
+                                aria-label="Edit command"
+                            >
+                                <span class="material-symbols-rounded"
+                                    >edit</span
+                                >
+                            </button>
+                            <button
+                                type="button"
+                                id="command-share-button"
+                                class="icon-button share-button hidden"
+                                data-action="open-share-modal"
+                                data-share-scope="command"
+                                aria-label="Share command"
+                            >
+                                <span class="material-symbols-rounded"
+                                    >share</span
+                                >
+                            </button>
+                            <button
+                                type="button"
+                                id="command-delete-button"
+                                class="icon-button delete-button hidden"
+                                data-action="open-delete-modal"
+                                aria-label="Delete command"
+                            >
+                                <span class="material-symbols-rounded"
+                                    >delete</span
+                                >
+                            </button>
+                        </div>
+                    </div>
+                    <div id="command-detail-card"></div>
+                </section>
+            </main>
+
+            <div
+                id="share-modal"
+                class="modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="share-modal-title"
+                aria-hidden="true"
+            >
+                <div class="modal-backdrop" data-action="close-share-modal"></div>
+                <div class="modal-panel">
+                    <div class="modal-header">
+                        <h3 id="share-modal-title">Share</h3>
+                        <button
+                            type="button"
+                            class="icon-button"
+                            data-action="close-share-modal"
+                            aria-label="Close share dialog"
+                        >
+                            <span class="material-symbols-rounded">close</span>
+                        </button>
+                    </div>
+                    <div class="share-row">
+                        <input
+                            type="text"
+                            id="share-modal-input"
+                            placeholder="Share with username"
+                            autocomplete="off"
+                        />
+                        <button
+                            type="button"
+                            class="btn primary-btn"
+                            id="share-modal-submit"
+                        >
+                            Share
+                        </button>
+                    </div>
+                    <p class="muted" id="share-modal-status"></p>
+                </div>
+            </div>
+
+            <div
+                id="delete-modal"
+                class="modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-modal-title"
+                aria-hidden="true"
+            >
+                <div class="modal-backdrop" data-action="close-delete-modal"></div>
+                <div class="modal-panel">
+                    <div class="modal-header">
+                        <h3 id="delete-modal-title">Delete command</h3>
+                        <button
+                            type="button"
+                            class="icon-button"
+                            data-action="close-delete-modal"
+                            aria-label="Close delete dialog"
+                        >
+                            <span class="material-symbols-rounded">close</span>
+                        </button>
+                    </div>
+                    <p class="muted" id="delete-modal-description">
+                        This will permanently delete the command.
+                    </p>
+                    <div class="form-actions">
+                        <button
+                            type="button"
+                            class="btn secondary-btn"
+                            data-action="close-delete-modal"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            class="btn danger-btn"
+                            id="delete-modal-confirm"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                    <p class="muted" id="delete-modal-status"></p>
+                </div>
+            </div>
+
+            <div id="toast-container" class="toast-container"></div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.3/dist/purify.min.js"></script>
+        <script src="/js/app.js"></script>
+    </body>
+</html>
