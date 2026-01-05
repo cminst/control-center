@@ -1287,6 +1287,9 @@ input:checked + .slider:before {
     font-family: "Space Grotesk", var(--ui-font);
     font-size: 1rem;
     color: var(--dark-color);
+    max-width: 100%;
+    overflow: hidden;
+    overflow-wrap: anywhere;
 }
 
 .command-preview-meta {
