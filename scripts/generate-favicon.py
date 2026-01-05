@@ -5,8 +5,8 @@ from PIL import Image, ImageDraw
 # Simple, dependency-light favicon generator using Pillow.
 # Produces a white background, dark gray "C", and darker sky-blue center dot.
 
-DARK_GRAY = "#2b2b2b"
-DARK_SKY_BLUE = "#2f7fd6"
+DARK_GRAY = "#1b1b1b"
+DARK_SKY_BLUE = "#1f80cf"
 WHITE = "#ffffff"
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,7 +29,7 @@ def draw_icon(size: int) -> Image.Image:
     draw.arc(bbox, start=40, end=320, fill=DARK_GRAY, width=stroke)
 
     # Center dot
-    radius = max(1, int(size * 0.13))
+    radius = max(1, int(size * 0.1))
     cx = cy = size // 2
     draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), fill=DARK_SKY_BLUE)
 
