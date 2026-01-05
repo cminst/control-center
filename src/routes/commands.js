@@ -9,6 +9,11 @@ function parseSharedList(sharedWith) {
   return sharedWith.split(",").filter(Boolean);
 }
 
+function normalizeOutput(output) {
+  if (typeof output !== "string") return "N/A";
+  return output.trim() === "" ? "N/A" : output;
+}
+
 router.get("/mine", requireAuth, async (req, res) => {
   try {
     const db = await getDb();
@@ -122,14 +127,14 @@ router.post("/", requireAuth, async (req, res) => {
     const { name, command, output, note, projectId } = req.body;
     const ownerId = req.session.userId;
 
-    if (!command || !output) {
-      return res
-        .status(400)
-        .json({ error: "Command and output are required" });
+    const commandValue = typeof command === "string" ? command.trim() : "";
+    if (!commandValue) {
+      return res.status(400).json({ error: "Command is required" });
     }
 
     const nameValue =
       typeof name === "string" && name.trim() ? name.trim() : null;
+    const outputValue = normalizeOutput(output);
 
     let projectIdValue = null;
     if (projectId) {
@@ -150,7 +155,7 @@ router.post("/", requireAuth, async (req, res) => {
         INSERT INTO commands (owner_id, project_id, name, command_text, output_text, note_markdown)
         VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [ownerId, projectIdValue, nameValue, command, output, note || null],
+      [ownerId, projectIdValue, nameValue, commandValue, outputValue, note || null],
     );
 
     const created = await db.get(
@@ -187,6 +192,11 @@ router.put("/:id", requireAuth, async (req, res) => {
 
     const nameValue =
       typeof name === "string" && name.trim() ? name.trim() : null;
+    const commandValue = typeof command === "string" ? command.trim() : "";
+    if (!commandValue) {
+      return res.status(400).json({ error: "Command is required" });
+    }
+    const outputValue = normalizeOutput(output);
 
     await db.run(
       `
@@ -194,7 +204,7 @@ router.put("/:id", requireAuth, async (req, res) => {
         SET name = ?, command_text = ?, output_text = ?, note_markdown = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `,
-      [nameValue, command, output, note, id],
+      [nameValue, commandValue, outputValue, note, id],
     );
 
     const updated = await db.get(

@@ -1019,6 +1019,7 @@ document.addEventListener("DOMContentLoaded", () => {
               type="text"
               id="edit-command-name"
               value="${escapeHtml(command.name || "")}"
+              autocomplete="off"
             />
           </div>
           <div class="form-group">
@@ -1038,7 +1039,6 @@ document.addEventListener("DOMContentLoaded", () => {
               id="edit-command-output"
               class="mono-input"
               wrap="off"
-              required
             >${escapeHtml(command.output_text)}</textarea>
           </div>
           <div class="form-group">
@@ -1286,6 +1286,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function truncateCommandText(text, limit) {
     const safeText = String(text || "").replace(/\s+/g, " ").trim();
     if (!safeText) return "...";
+    if (safeText.length <= limit) return safeText;
     const slice = safeText.slice(0, limit).trimEnd();
     return `${slice}...`;
   }

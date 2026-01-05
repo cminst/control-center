@@ -9,6 +9,11 @@ function parseSharedList(sharedWith) {
   return sharedWith.split(",").filter(Boolean);
 }
 
+function normalizeOutput(output) {
+  if (typeof output !== "string") return "N/A";
+  return output.trim() === "" ? "N/A" : output;
+}
+
 async function getProjectWithAccess(db, projectId, userId) {
   return db.get(
     `
@@ -198,14 +203,14 @@ router.post("/:id/commands", requireAuth, async (req, res) => {
     const { name, command, output, note } = req.body;
     const ownerId = req.session.userId;
 
-    if (!command || !output) {
-      return res
-        .status(400)
-        .json({ error: "Command and output are required" });
+    const commandValue = typeof command === "string" ? command.trim() : "";
+    if (!commandValue) {
+      return res.status(400).json({ error: "Command is required" });
     }
 
     const nameValue =
       typeof name === "string" && name.trim() ? name.trim() : null;
+    const outputValue = normalizeOutput(output);
 
     const db = await getDb();
     const project = await db.get(
@@ -221,7 +226,7 @@ router.post("/:id/commands", requireAuth, async (req, res) => {
         INSERT INTO commands (owner_id, project_id, name, command_text, output_text, note_markdown)
         VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [ownerId, id, nameValue, command, output, note || null],
+      [ownerId, id, nameValue, commandValue, outputValue, note || null],
     );
 
     const created = await db.get(
