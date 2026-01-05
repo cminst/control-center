@@ -199,15 +199,25 @@ router.put("/:id", requireAuth, async (req, res) => {
 
     const updated = await db.get(
       `
-        SELECT commands.*, projects.name AS project_name
+        SELECT commands.*, projects.name AS project_name,
+               owners.username AS owner_username,
+               GROUP_CONCAT(shared_users.username, ',') AS shared_with,
+               CASE WHEN commands.owner_id = ? THEN 1 ELSE 0 END AS is_owner
         FROM commands
+        JOIN users owners ON owners.id = commands.owner_id
         LEFT JOIN projects ON commands.project_id = projects.id
+        LEFT JOIN command_shares ON command_shares.command_id = commands.id
+        LEFT JOIN users shared_users ON shared_users.id = command_shares.shared_with_user_id
         WHERE commands.id = ?
+        GROUP BY commands.id
       `,
-      id,
+      [ownerId, id],
     );
 
-    res.json(updated);
+    res.json({
+      ...updated,
+      shared_with: parseSharedList(updated.shared_with),
+    });
   } catch (error) {
     console.error("Error updating command:", error);
     res.status(500).json({ error: "Failed to update command" });

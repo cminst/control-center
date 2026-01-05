@@ -1217,7 +1217,7 @@ input:checked + .slider:before {
 }
 
 .command-form textarea {
-    min-height: 120px;
+    min-height: 360px;
     resize: vertical;
 }
 
