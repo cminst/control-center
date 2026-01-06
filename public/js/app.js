@@ -23,6 +23,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const projectCommandError = document.getElementById("project-command-error");
   const projectCommandGallery = document.getElementById("project-command-gallery");
   const projectCommandCard = document.getElementById("project-command-card");
+  const commandTextInput = document.getElementById("command-text");
+  const projectCommandTextInput = document.getElementById("project-command-text");
   const projectShareButton = document.getElementById("project-share-button");
   const commandDetailCard = document.getElementById("command-detail-card");
   const commandBreadcrumb = document.getElementById("command-breadcrumb");
@@ -105,6 +107,9 @@ document.addEventListener("DOMContentLoaded", () => {
       navigateTo(tabPaths[tab]);
     });
   });
+
+  setupAutosizeTextarea(commandTextInput);
+  setupAutosizeTextarea(projectCommandTextInput);
 
   loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -194,6 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       if (response.ok) {
         commandForm.reset();
+        setupAutosizeTextarea(commandTextInput);
         await loadCommands();
       } else {
         commandError.textContent = data.error || "Failed to save command";
@@ -261,6 +267,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       if (response.ok) {
         projectCommandForm.reset();
+        setupAutosizeTextarea(projectCommandTextInput);
         await loadProjectCommands(activeProjectId);
       } else {
         projectCommandError.textContent = data.error || "Failed to save command";
@@ -1024,14 +1031,13 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <div class="form-group">
             <label for="edit-command-text">Command</label>
-            <input
-              type="text"
+            <textarea
               id="edit-command-text"
-              class="mono-input"
-              value="${escapeHtml(command.command_text)}"
+              class="mono-input command-input"
               autocomplete="off"
+              wrap="off"
               required
-            />
+            >${escapeHtml(command.command_text)}</textarea>
           </div>
           <div class="form-group">
             <label for="edit-command-output">Output</label>
@@ -1128,6 +1134,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.setTimeout(() => {
       const input = document.getElementById("edit-command-text");
       if (input) {
+        setupAutosizeTextarea(input);
         input.focus();
         input.select();
       }
@@ -1274,6 +1281,33 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/>/g, "&gt;")
       .replace(/\"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function setupAutosizeTextarea(textarea) {
+    if (!textarea) return;
+    const alreadyInitialized = textarea.dataset.autosize === "true";
+    if (!alreadyInitialized) {
+      textarea.dataset.autosize = "true";
+      textarea.addEventListener("input", () => sizeTextarea(textarea));
+    }
+    sizeTextarea(textarea);
+  }
+
+  function sizeTextarea(textarea) {
+    if (!textarea) return;
+    const styles = window.getComputedStyle(textarea);
+    const minHeight = parseFloat(styles.minHeight) || 0;
+    const maxHeightValue = parseFloat(styles.maxHeight);
+    const maxHeight = Number.isFinite(maxHeightValue) ? maxHeightValue : 360;
+
+    textarea.style.height = "auto";
+    const nextHeight = Math.min(
+      Math.max(textarea.scrollHeight, minHeight),
+      maxHeight,
+    );
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY =
+      textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   }
 
   function formatDate(dateString) {

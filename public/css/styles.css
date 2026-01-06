@@ -1221,6 +1221,14 @@ input:checked + .slider:before {
     resize: vertical;
 }
 
+.command-form textarea.command-input {
+    min-height: 2.6rem;
+    max-height: 360px;
+    height: 2.6rem;
+    overflow-y: hidden;
+    resize: none;
+}
+
 .command-form textarea:focus,
 .command-form input:focus,
 .command-form select:focus {
