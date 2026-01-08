@@ -1222,11 +1222,11 @@ input:checked + .slider:before {
 }
 
 .command-form textarea.command-input {
-    min-height: 2.6rem;
+    min-height: calc(1.2em + 1.7rem + 2px);
     max-height: 360px;
-    height: 2.6rem;
     overflow-y: hidden;
     resize: none;
+    line-height: 1.2;
 }
 
 .command-form textarea:focus,
