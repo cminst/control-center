@@ -12,7 +12,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const commandForm = document.getElementById("command-form");
   const commandError = document.getElementById("command-error");
   const commandGallery = document.getElementById("command-gallery");
+  const noteForm = document.getElementById("note-form");
+  const noteError = document.getElementById("note-error");
+  const noteGallery = document.getElementById("note-gallery");
   const sharedCommandList = document.getElementById("shared-command-list");
+  const sharedNoteList = document.getElementById("shared-note-list");
   const sharedProjectList = document.getElementById("shared-project-list");
   const projectForm = document.getElementById("project-form");
   const projectError = document.getElementById("project-error");
@@ -24,6 +28,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const projectCommandGallery = document.getElementById("project-command-gallery");
   const projectCommandCard = document.getElementById("project-command-card");
   const commandTextInput = document.getElementById("command-text");
+  const noteTitleInput = document.getElementById("note-title");
+  const noteTextInput = document.getElementById("note-text");
+  const noteCreateButton = document.getElementById("note-create-button");
   const projectCommandTextInput = document.getElementById("project-command-text");
   const projectShareButton = document.getElementById("project-share-button");
   const commandDetailCard = document.getElementById("command-detail-card");
@@ -46,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const tabButtons = document.querySelectorAll(".app-tabs .tab-btn");
   const views = {
     commands: document.getElementById("commands-view"),
+    notes: document.getElementById("notes-view"),
     shared: document.getElementById("shared-view"),
     projects: document.getElementById("projects-view"),
     projectDetail: document.getElementById("project-detail-view"),
@@ -56,14 +64,27 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeProjectId = null;
   let activeCommandId = null;
   let activeCommandData = null;
+  let activeNoteId = null;
+  let activeNoteData = null;
   let detailFallbackPath = "/my_commands";
   let activeShareContext = null;
   let activeDeleteContext = null;
   let isEditingCommand = false;
+  let isPreviewingNote = false;
+  let activeDetailType = null;
+  let noteAutosaveTimer = null;
+  let noteAutosaveMode = null;
+  let noteAutosaveDirty = false;
+  let noteAutosavePending = false;
+  let newNoteDraftId = null;
+  let newNoteLastSaved = { title: "", note: "" };
+  let detailNoteLastSaved = { title: "", note: "" };
 
   const markdownRenderer = window.markdownit
     ? window.markdownit({ linkify: true })
     : null;
+
+  const NOTE_AUTOSAVE_INTERVAL = 5000;
 
   const katexPlugin =
     (window.markdownitKatex && window.markdownitKatex.default) ||
@@ -78,6 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const tabPaths = {
     commands: "/my_commands",
+    notes: "/notes",
     shared: "/shared",
     projects: "/projects",
   };
@@ -109,6 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   setupAutosizeTextarea(commandTextInput);
+  setupAutosizeTextarea(noteTextInput);
   setupAutosizeTextarea(projectCommandTextInput);
 
   loginForm.addEventListener("submit", async (event) => {
@@ -210,6 +233,53 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  noteForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    noteError.textContent = "";
+    const title = noteTitleInput ? noteTitleInput.value.trim() : "";
+    const note = noteTextInput ? noteTextInput.value.trim() : "";
+    if (!note) {
+      noteError.textContent = "Note is required.";
+      return;
+    }
+    if (noteCreateButton) {
+      noteCreateButton.disabled = true;
+    }
+    try {
+      const response = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: title || null,
+          note,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        noteForm.reset();
+        setupAutosizeTextarea(noteTextInput);
+        await loadNotes();
+      } else {
+        noteError.textContent = data.error || "Failed to create note";
+      }
+    } catch (error) {
+      console.error("Note create error:", error);
+      noteError.textContent = "An error occurred. Please try again.";
+    } finally {
+      if (noteCreateButton) {
+        const note = noteTextInput ? noteTextInput.value.trim() : "";
+        noteCreateButton.disabled = !note;
+      }
+    }
+  });
+
+  noteForm.addEventListener("input", () => {
+    noteError.textContent = "";
+    if (!noteCreateButton) return;
+    const note = noteTextInput ? noteTextInput.value.trim() : "";
+    noteCreateButton.disabled = !note;
+  });
+
   projectForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     projectError.textContent = "";
@@ -280,8 +350,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   commandDetailCard.addEventListener("submit", async (event) => {
     const form = event.target;
-    if (form.id !== "command-edit-form") return;
+    if (form.id !== "command-edit-form" && form.id !== "note-edit-form") {
+      return;
+    }
     event.preventDefault();
+
+    if (form.id === "note-edit-form") {
+      performNoteAutosave({ mode: "detail", force: true });
+      return;
+    }
 
     const name = document.getElementById("edit-command-name").value.trim();
     const command = document
@@ -330,16 +407,52 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  commandDetailCard.addEventListener("input", (event) => {
+    if (activeDetailType !== "note") return;
+    if (
+      event.target.id !== "note-edit-title" &&
+      event.target.id !== "note-edit-text"
+    ) {
+      return;
+    }
+    const titleInput = document.getElementById("note-edit-title");
+    const noteInput = document.getElementById("note-edit-text");
+    if (activeNoteData) {
+      activeNoteData.name = titleInput ? titleInput.value : "";
+      activeNoteData.note_markdown = noteInput ? noteInput.value : "";
+    }
+    if (commandDetailTitle) {
+      commandDetailTitle.textContent = getNoteTitle(activeNoteData);
+    }
+    const errorEl = document.getElementById("note-edit-error");
+    if (errorEl) {
+      errorEl.textContent = "";
+    }
+    markNoteAutosaveDirty("detail");
+  });
+
   commandGallery.addEventListener("click", (event) => {
     const card = event.target.closest("[data-command-id]");
     if (!card) return;
     navigateTo(`/commands/${card.dataset.commandId}`);
   });
 
+  noteGallery.addEventListener("click", (event) => {
+    const card = event.target.closest("[data-note-id]");
+    if (!card) return;
+    navigateTo(`/notes/${card.dataset.noteId}`);
+  });
+
   sharedCommandList.addEventListener("click", (event) => {
     const card = event.target.closest("[data-command-id]");
     if (!card) return;
     navigateTo(`/commands/${card.dataset.commandId}`);
+  });
+
+  sharedNoteList.addEventListener("click", (event) => {
+    const card = event.target.closest("[data-note-id]");
+    if (!card) return;
+    navigateTo(`/notes/${card.dataset.noteId}`);
   });
 
   projectCommandGallery.addEventListener("click", (event) => {
@@ -377,7 +490,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const editBtn = event.target.closest("[data-action='edit-command']");
     if (editBtn) {
-      enterCommandEditMode();
+      if (activeDetailType === "note") {
+        toggleNotePreview();
+      } else {
+        enterCommandEditMode();
+      }
       return;
     }
 
@@ -408,6 +525,14 @@ document.addEventListener("DOMContentLoaded", () => {
           placeholder: "Share command with username",
         });
       }
+      if (scope === "note" && activeNoteId) {
+        openShareModal({
+          scope: "note",
+          targetId: activeNoteId,
+          title: "Share note",
+          placeholder: "Share note with username",
+        });
+      }
       return;
     }
 
@@ -415,7 +540,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "[data-action='open-delete-modal']",
     );
     if (openDeleteBtn) {
-      if (activeCommandId) {
+      if (activeCommandId || activeNoteId) {
         openDeleteModal();
       }
       return;
@@ -502,6 +627,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    if (path === "/notes") {
+      showNotesView();
+      return;
+    }
+
     if (path === "/shared") {
       showSharedView();
       return;
@@ -515,6 +645,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const projectMatch = path.match(/^\/projects\/(\d+)$/);
     if (projectMatch) {
       showProjectDetailView(projectMatch[1]);
+      return;
+    }
+
+    const noteMatch = path.match(/^\/notes\/(\d+)$/);
+    if (noteMatch) {
+      showNoteDetailView(noteMatch[1]);
       return;
     }
 
@@ -545,8 +681,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function showView(viewKey) {
     closeShareModal();
     closeDeleteModal();
+    stopNoteAutosave();
     if (viewKey !== "commandDetail") {
       isEditingCommand = false;
+      isPreviewingNote = false;
+      activeDetailType = null;
     }
     Object.entries(views).forEach(([key, view]) => {
       view.classList.toggle("hidden", key !== viewKey);
@@ -563,6 +702,16 @@ document.addEventListener("DOMContentLoaded", () => {
     setActiveTab("commands");
     showView("commands");
     loadCommands();
+  }
+
+  function showNotesView() {
+    setActiveTab("notes");
+    showView("notes");
+    if (noteCreateButton) {
+      const note = noteTextInput ? noteTextInput.value.trim() : "";
+      noteCreateButton.disabled = !note;
+    }
+    loadNotes();
   }
 
   function showSharedView() {
@@ -587,6 +736,12 @@ document.addEventListener("DOMContentLoaded", () => {
     setActiveTab("commands");
     showView("commandDetail");
     loadCommandDetail(commandId);
+  }
+
+  function showNoteDetailView(noteId) {
+    setActiveTab("notes");
+    showView("commandDetail");
+    loadNoteDetail(noteId);
   }
 
   function handleBack() {
@@ -624,12 +779,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function openDeleteModal() {
     closeShareModal();
-    activeDeleteContext = { commandId: activeCommandId };
-    const snippet = truncateCommandText(
-      activeCommandData?.command_text || "",
-      48,
-    );
-    deleteModalDescription.textContent = `Delete "${snippet}"? This cannot be undone.`;
+    if (activeDetailType === "note") {
+      activeDeleteContext = { type: "note", id: activeNoteId };
+      const title = getNoteTitle(activeNoteData);
+      deleteModalDescription.textContent = `Delete note "${title}"? This cannot be undone.`;
+    } else {
+      activeDeleteContext = { type: "command", id: activeCommandId };
+      const snippet = truncateCommandText(
+        activeCommandData?.command_text || "",
+        48,
+      );
+      deleteModalDescription.textContent = `Delete "${snippet}"? This cannot be undone.`;
+    }
     deleteModalStatus.textContent = "";
     deleteModal.classList.add("is-open");
     deleteModal.setAttribute("aria-hidden", "false");
@@ -657,7 +818,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const endpoint =
       scope === "project"
         ? `/api/projects/${targetId}/share`
-        : `/api/commands/${targetId}/share`;
+        : scope === "note"
+          ? `/api/notes/${targetId}/share`
+          : `/api/commands/${targetId}/share`;
 
     try {
       const response = await fetch(endpoint, {
@@ -672,6 +835,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (scope === "command") {
           await loadCommandDetail(targetId);
         }
+        if (scope === "note") {
+          await loadNoteDetail(targetId);
+        }
       } else {
         shareModalStatus.textContent = data.error || "Unable to share.";
       }
@@ -683,29 +849,44 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function submitDelete() {
     if (!activeDeleteContext) return;
+    const { type, id } = activeDeleteContext;
     deleteModalStatus.textContent = "";
     deleteModalConfirm.disabled = true;
 
     try {
-      const response = await fetch(
-        `/api/commands/${activeDeleteContext.commandId}`,
-        {
-          method: "DELETE",
-        },
-      );
+      const endpoint =
+        type === "note" ? `/api/notes/${id}` : `/api/commands/${id}`;
+      const response = await fetch(endpoint, { method: "DELETE" });
       const data = await response.json().catch(() => ({}));
       if (response.ok) {
         closeDeleteModal();
-        activeCommandData = null;
-        activeCommandId = null;
-        navigateTo(detailFallbackPath, { replace: true });
+        if (type === "note") {
+          activeNoteData = null;
+          activeNoteId = null;
+          activeDetailType = null;
+          isPreviewingNote = false;
+          stopNoteAutosave();
+          if (commandDetailCard) {
+            commandDetailCard.innerHTML = "";
+          }
+          handleBack();
+          return;
+        } else {
+          activeCommandData = null;
+          activeCommandId = null;
+        }
+        handleBack();
       } else {
         deleteModalStatus.textContent =
-          data.error || "Unable to delete command.";
+          data.error ||
+          (type === "note"
+            ? "Unable to delete note."
+            : "Unable to delete command.");
       }
     } catch (error) {
       console.error("Delete command error:", error);
-      deleteModalStatus.textContent = "Unable to delete command.";
+      deleteModalStatus.textContent =
+        type === "note" ? "Unable to delete note." : "Unable to delete command.";
     } finally {
       deleteModalConfirm.disabled = false;
     }
@@ -724,18 +905,39 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  async function loadNotes() {
+    try {
+      const response = await fetch("/api/notes");
+      const data = await response.json();
+      if (response.ok) {
+        renderNoteGallery(noteGallery, data);
+      }
+    } catch (error) {
+      console.error("Load notes error:", error);
+    }
+  }
+
   async function loadShared() {
     try {
-      const [commandResponse, projectResponse] = await Promise.all([
-        fetch("/api/commands/shared"),
-        fetch("/api/projects/shared"),
-      ]);
+      const [commandResponse, noteResponse, projectResponse] =
+        await Promise.all([
+          fetch("/api/commands/shared"),
+          fetch("/api/notes/shared"),
+          fetch("/api/projects/shared"),
+        ]);
       const commands = await commandResponse.json();
+      const notes = await noteResponse.json();
       const projects = await projectResponse.json();
 
       if (commandResponse.ok) {
         renderCommandGallery(sharedCommandList, commands, {
           emptyMessage: "No shared commands yet.",
+          showOwner: true,
+        });
+      }
+      if (noteResponse.ok) {
+        renderNoteGallery(sharedNoteList, notes, {
+          emptyMessage: "No shared notes yet.",
           showOwner: true,
         });
       }
@@ -850,6 +1052,7 @@ document.addEventListener("DOMContentLoaded", () => {
     activeCommandId = commandId;
     activeCommandData = null;
     isEditingCommand = false;
+    activeDetailType = "command";
 
     try {
       const response = await fetch(`/api/commands/${commandId}`);
@@ -871,6 +1074,11 @@ document.addEventListener("DOMContentLoaded", () => {
         commandDetailTitle.textContent =
           data.name && data.name.trim() ? data.name : "Command Details";
       }
+      setDetailEditButton({
+        icon: "edit",
+        label: "Edit command",
+        shareScope: "command",
+      });
       commandShareButton.classList.toggle("hidden", !data.is_owner);
       commandEditButton.classList.toggle("hidden", !data.is_owner);
       commandDeleteButton.classList.toggle("hidden", !data.is_owner);
@@ -895,6 +1103,391 @@ document.addEventListener("DOMContentLoaded", () => {
       if (commandDetailTitle) {
         commandDetailTitle.textContent = "Command Details";
       }
+    }
+  }
+
+  async function loadNoteDetail(noteId) {
+    commandDetailCard.innerHTML = "";
+    commandBreadcrumb.textContent = "Notes";
+    if (commandDetailTitle) {
+      commandDetailTitle.textContent = "Note";
+    }
+    activeNoteId = noteId;
+    activeNoteData = null;
+    isPreviewingNote = false;
+    activeDetailType = "note";
+    detailFallbackPath = "/notes";
+
+    try {
+      const response = await fetch(`/api/notes/${noteId}`);
+      const data = await response.json();
+      if (!response.ok) {
+        commandDetailCard.innerHTML =
+          '<div class="empty-state">Note not found.</div>';
+        commandShareButton.classList.add("hidden");
+        commandEditButton.classList.add("hidden");
+        commandDeleteButton.classList.add("hidden");
+        detailFallbackPath = "/notes";
+        return;
+      }
+
+      activeNoteData = data;
+      isPreviewingNote = !data.is_owner;
+      detailNoteLastSaved = {
+        title: data.name || "",
+        note: data.note_markdown || "",
+      };
+      renderNoteDetail();
+
+      commandShareButton.classList.toggle("hidden", !data.is_owner);
+      commandEditButton.classList.toggle("hidden", !data.is_owner);
+      commandDeleteButton.classList.toggle("hidden", !data.is_owner);
+
+      detailFallbackPath = "/notes";
+      setActiveTab("notes");
+    } catch (error) {
+      console.error("Load note detail error:", error);
+      commandDetailCard.innerHTML =
+        '<div class="empty-state">Unable to load note.</div>';
+      commandShareButton.classList.add("hidden");
+      commandEditButton.classList.add("hidden");
+      commandDeleteButton.classList.add("hidden");
+      if (commandDetailTitle) {
+        commandDetailTitle.textContent = "Note";
+      }
+    }
+  }
+
+  function setDetailEditButton({ icon, label, shareScope }) {
+    if (commandEditButton) {
+      const iconEl = commandEditButton.querySelector(
+        ".material-symbols-rounded",
+      );
+      if (iconEl && icon) {
+        iconEl.textContent = icon;
+      }
+      if (label) {
+        commandEditButton.setAttribute("aria-label", label);
+      }
+    }
+    if (commandShareButton && shareScope) {
+      commandShareButton.dataset.shareScope = shareScope;
+    }
+  }
+
+  function getNoteTitle(note) {
+    const name = note?.name ? note.name.trim() : "";
+    if (name) return name;
+    const snippet = truncateCommandText(note?.note_markdown || "", 40);
+    return snippet === "..." ? "Note" : snippet;
+  }
+
+  function renderNoteDetail() {
+    if (!activeNoteData) return;
+
+    if (commandDetailTitle) {
+      commandDetailTitle.textContent = getNoteTitle(activeNoteData);
+    }
+
+    if (isPreviewingNote) {
+      commandDetailCard.innerHTML = renderNoteDetailPreview(activeNoteData);
+      enhanceMathRendering(commandDetailCard);
+    } else {
+      commandDetailCard.innerHTML = renderNoteEditForm(activeNoteData);
+      window.setTimeout(() => {
+        const input = document.getElementById("note-edit-text");
+        if (input) {
+          setupAutosizeTextarea(input);
+          input.focus();
+        }
+      }, 0);
+    }
+
+    setDetailEditButton({
+      icon: isPreviewingNote ? "edit" : "visibility",
+      label: isPreviewingNote ? "Edit note" : "Preview note",
+      shareScope: "note",
+    });
+
+    if (activeNoteData.is_owner && !isPreviewingNote) {
+      startNoteAutosave("detail");
+    } else {
+      stopNoteAutosave();
+    }
+  }
+
+  function toggleNotePreview() {
+    if (!activeNoteData || !activeNoteData.is_owner) return;
+    if (!isPreviewingNote) {
+      syncNoteEditToState();
+      performNoteAutosave({ mode: "detail", force: true });
+    }
+    isPreviewingNote = !isPreviewingNote;
+    renderNoteDetail();
+  }
+
+  function renderNoteGallery(container, notes, options = {}) {
+    if (!notes || notes.length === 0) {
+      container.innerHTML =
+        `<div class="empty-state">${escapeHtml(
+          options.emptyMessage || "No notes yet.",
+        )}</div>`;
+      return;
+    }
+
+    container.innerHTML = notes
+      .map((note) => renderNotePreviewCard(note, options))
+      .join("");
+  }
+
+  function renderNotePreviewCard(note, options = {}) {
+    const createdAt = formatDate(note.created_at);
+    const title = getNoteTitle(note);
+    const ownerLabel =
+      options.showOwner && note.owner_username
+        ? `Shared by ${note.owner_username}`
+        : "";
+
+    return `
+      <article class="command-preview-card" data-note-id="${note.id}">
+        <div class="command-preview-meta">${escapeHtml(createdAt)}</div>
+        ${ownerLabel ? `<div class="command-preview-meta">${escapeHtml(ownerLabel)}</div>` : ""}
+        <div class="command-preview">${escapeHtml(title)}</div>
+      </article>
+    `;
+  }
+
+  function renderNoteDetailPreview(note) {
+    return `
+      <div class="command-card">
+        <div class="note-rendered markdown-body">${renderMarkdown(
+          note.note_markdown,
+        )}</div>
+      </div>
+    `;
+  }
+
+  function renderNoteEditForm(note) {
+    return `
+      <div class="command-card">
+        <form id="note-edit-form" class="command-form note-form">
+          <div class="form-group">
+            <label for="note-edit-title">Title</label>
+            <input
+              type="text"
+              id="note-edit-title"
+              value="${escapeHtml(note.name || "")}"
+              autocomplete="off"
+            />
+          </div>
+          <div class="form-group note-body">
+            <textarea
+              id="note-edit-text"
+              class="mono-input note-textarea"
+              placeholder="Write a markdown note..."
+              aria-label="Note markdown"
+              autocomplete="off"
+              wrap="soft"
+              required
+            >${escapeHtml(note.note_markdown || "")}</textarea>
+          </div>
+          <p id="note-edit-error" class="error-message"></p>
+        </form>
+      </div>
+    `;
+  }
+
+  function getNewNoteDraftValues() {
+    return {
+      title: noteTitleInput ? noteTitleInput.value.trim() : "",
+      note: noteTextInput ? noteTextInput.value.trim() : "",
+    };
+  }
+
+  function getDetailNoteDraftValues() {
+    const titleInput = document.getElementById("note-edit-title");
+    const noteInput = document.getElementById("note-edit-text");
+    return {
+      title: titleInput ? titleInput.value.trim() : "",
+      note: noteInput ? noteInput.value.trim() : "",
+    };
+  }
+
+  function noteValuesChanged(next, prev) {
+    return next.title !== prev.title || next.note !== prev.note;
+  }
+
+  function startNoteAutosave(mode) {
+    if (noteAutosaveMode !== mode) {
+      noteAutosaveMode = mode;
+      noteAutosaveDirty = false;
+      noteAutosavePending = false;
+    }
+    if (!noteAutosaveTimer) {
+      noteAutosaveTimer = window.setInterval(() => {
+        performNoteAutosave();
+      }, NOTE_AUTOSAVE_INTERVAL);
+    }
+  }
+
+  function stopNoteAutosave() {
+    if (noteAutosaveTimer) {
+      window.clearInterval(noteAutosaveTimer);
+    }
+    noteAutosaveTimer = null;
+    noteAutosaveMode = null;
+    noteAutosaveDirty = false;
+    noteAutosavePending = false;
+  }
+
+  function markNoteAutosaveDirty(mode) {
+    noteAutosaveMode = mode;
+    noteAutosaveDirty = true;
+    startNoteAutosave(mode);
+  }
+
+  function syncNoteEditToState() {
+    if (activeDetailType !== "note" || !activeNoteData) return;
+    const draft = getDetailNoteDraftValues();
+    activeNoteData = {
+      ...activeNoteData,
+      name: draft.title,
+      note_markdown: draft.note,
+    };
+    if (commandDetailTitle) {
+      commandDetailTitle.textContent = getNoteTitle(activeNoteData);
+    }
+  }
+
+  async function performNoteAutosave({ mode, force = false } = {}) {
+    const targetMode = mode || noteAutosaveMode;
+    if (!targetMode) return;
+    noteAutosaveMode = targetMode;
+    if (noteAutosavePending) return;
+    if (!noteAutosaveDirty && !force) return;
+
+    if (targetMode === "new") {
+      await saveNewNoteDraft(force);
+      return;
+    }
+
+    if (targetMode === "detail") {
+      await saveDetailNoteDraft(force);
+    }
+  }
+
+  async function saveNewNoteDraft(force) {
+    const draft = getNewNoteDraftValues();
+    if (!draft.title && !draft.note) {
+      noteAutosaveDirty = false;
+      return;
+    }
+    if (!draft.note) {
+      noteAutosaveDirty = false;
+      return;
+    }
+    if (newNoteDraftId && !noteValuesChanged(draft, newNoteLastSaved) && !force) {
+      noteAutosaveDirty = false;
+      return;
+    }
+
+    noteAutosavePending = true;
+    try {
+      const response = await fetch(
+        newNoteDraftId ? `/api/notes/${newNoteDraftId}` : "/api/notes",
+        {
+          method: newNoteDraftId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: draft.title || null,
+            note: draft.note,
+          }),
+        },
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        newNoteDraftId = data.id || newNoteDraftId;
+        newNoteLastSaved = {
+          title: data.name || draft.title || "",
+          note: data.note_markdown || draft.note,
+        };
+        noteError.textContent = "";
+        await loadNotes();
+      } else {
+        noteError.textContent = data.error || "Failed to save note";
+      }
+    } catch (error) {
+      console.error("Note autosave error:", error);
+      noteError.textContent = "An error occurred. Please try again.";
+    } finally {
+      noteAutosavePending = false;
+      const current = getNewNoteDraftValues();
+      noteAutosaveDirty = noteValuesChanged(current, newNoteLastSaved);
+    }
+  }
+
+  async function saveDetailNoteDraft(force) {
+    if (
+      !activeNoteId ||
+      !activeNoteData ||
+      !activeNoteData.is_owner ||
+      isPreviewingNote
+    ) {
+      return;
+    }
+
+    const draft = getDetailNoteDraftValues();
+    if (!draft.note) {
+      const errorEl = document.getElementById("note-edit-error");
+      if (errorEl) {
+        errorEl.textContent = "Note is required.";
+      }
+      noteAutosaveDirty = false;
+      return;
+    }
+    if (!noteValuesChanged(draft, detailNoteLastSaved) && !force) {
+      noteAutosaveDirty = false;
+      return;
+    }
+
+    noteAutosavePending = true;
+    try {
+      const response = await fetch(`/api/notes/${activeNoteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: draft.title || null,
+          note: draft.note,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        activeNoteData = data;
+        detailNoteLastSaved = {
+          title: data.name || draft.title || "",
+          note: data.note_markdown || draft.note,
+        };
+        if (commandDetailTitle) {
+          commandDetailTitle.textContent = getNoteTitle(activeNoteData);
+        }
+      } else {
+        const errorEl = document.getElementById("note-edit-error");
+        if (errorEl) {
+          errorEl.textContent = data.error || "Failed to update note";
+        }
+      }
+    } catch (error) {
+      console.error("Note autosave error:", error);
+      const errorEl = document.getElementById("note-edit-error");
+      if (errorEl) {
+        errorEl.textContent = "An error occurred. Please try again.";
+      }
+    } finally {
+      noteAutosavePending = false;
+      const current = getDetailNoteDraftValues();
+      noteAutosaveDirty = noteValuesChanged(current, detailNoteLastSaved);
     }
   }
 
@@ -1126,7 +1719,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function enterCommandEditMode() {
-    if (!activeCommandData || !activeCommandData.is_owner || isEditingCommand) {
+    if (
+      activeDetailType !== "command" ||
+      !activeCommandData ||
+      !activeCommandData.is_owner ||
+      isEditingCommand
+    ) {
       return;
     }
     isEditingCommand = true;
@@ -1142,7 +1740,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function exitCommandEditMode() {
-    if (!activeCommandData) return;
+    if (activeDetailType !== "command" || !activeCommandData) return;
     isEditingCommand = false;
     commandDetailCard.innerHTML = renderCommandDetailCard(activeCommandData);
     enhanceMathRendering(commandDetailCard);

@@ -5,6 +5,7 @@ const SQLiteStore = require("connect-sqlite3")(session);
 const { initDb } = require("./src/models/db");
 const authRoutes = require("./src/routes/auth");
 const commandRoutes = require("./src/routes/commands");
+const noteRoutes = require("./src/routes/notes");
 const projectRoutes = require("./src/routes/projects");
 
 const app = express();
@@ -25,15 +26,18 @@ app.use(sessionMiddleware);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/commands", commandRoutes);
+app.use("/api/notes", noteRoutes);
 app.use("/api/projects", projectRoutes);
 
 const spaRoutes = [
   "/",
   "/my_commands",
   "/shared",
+  "/notes",
   "/projects",
   "/projects/:id",
   "/commands/:id",
+  "/notes/:id",
 ];
 
 app.get(spaRoutes, (req, res) => {

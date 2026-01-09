@@ -1150,7 +1150,7 @@ input:checked + .slider:before {
     border-radius: 14px;
     padding: 0.4rem;
     display: inline-grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.4rem;
 }
 
@@ -1214,6 +1214,28 @@ input:checked + .slider:before {
     overflow-x: auto;
     word-break: normal;
     overflow-wrap: normal;
+}
+
+.note-form textarea.note-textarea {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow-x: hidden;
+    min-height: 520px;
+    max-height: 900px;
+}
+
+.note-form .form-group.note-body {
+    margin-bottom: 0;
+}
+
+.note-form .form-actions {
+    margin-top: 0.75rem;
+    justify-content: stretch;
+}
+
+.note-form .form-actions .btn {
+    width: 100%;
 }
 
 .command-form textarea {

@@ -4,44 +4,40 @@ const { requireAuth } = require("../utils/auth");
 
 const router = express.Router();
 
+const NOTE_COMMAND_TEXT = "note";
+const NOTE_OUTPUT_TEXT = "N/A";
+
 function parseSharedList(sharedWith) {
   if (!sharedWith) return [];
   return sharedWith.split(",").filter(Boolean);
 }
 
-function normalizeOutput(output) {
-  if (typeof output !== "string") return "N/A";
-  return output.trim() === "" ? "N/A" : output;
-}
-
-router.get("/mine", requireAuth, async (req, res) => {
+router.get("/", requireAuth, async (req, res) => {
   try {
     const db = await getDb();
-    const commands = await db.all(
+    const notes = await db.all(
       `
-        SELECT commands.*, projects.name AS project_name,
-               GROUP_CONCAT(shared_users.username, ',') AS shared_with
+        SELECT commands.*, GROUP_CONCAT(shared_users.username, ',') AS shared_with
         FROM commands
-        LEFT JOIN projects ON commands.project_id = projects.id
         LEFT JOIN command_shares ON command_shares.command_id = commands.id
         LEFT JOIN users shared_users ON shared_users.id = command_shares.shared_with_user_id
         WHERE commands.owner_id = ?
-          AND commands.is_note = 0
+          AND commands.is_note = 1
         GROUP BY commands.id
         ORDER BY commands.created_at DESC
       `,
       req.session.userId,
     );
 
-    const formatted = commands.map((command) => ({
-      ...command,
-      shared_with: parseSharedList(command.shared_with),
+    const formatted = notes.map((note) => ({
+      ...note,
+      shared_with: parseSharedList(note.shared_with),
     }));
 
     res.json(formatted);
   } catch (error) {
-    console.error("Error fetching commands:", error);
-    res.status(500).json({ error: "Failed to fetch commands" });
+    console.error("Error fetching notes:", error);
+    res.status(500).json({ error: "Failed to fetch notes" });
   }
 });
 
@@ -50,27 +46,24 @@ router.get("/shared", requireAuth, async (req, res) => {
     const db = await getDb();
     const userId = req.session.userId;
 
-    const commands = await db.all(
+    const notes = await db.all(
       `
-        SELECT DISTINCT commands.*, projects.id AS project_id, projects.name AS project_name,
-               owners.username AS owner_username
+        SELECT DISTINCT commands.*, owners.username AS owner_username
         FROM commands
         JOIN users owners ON owners.id = commands.owner_id
-        LEFT JOIN projects ON commands.project_id = projects.id
-        LEFT JOIN command_shares ON command_shares.command_id = commands.id
-        LEFT JOIN project_shares ON project_shares.project_id = commands.project_id
-        WHERE (command_shares.shared_with_user_id = ? OR project_shares.shared_with_user_id = ?)
+        JOIN command_shares ON command_shares.command_id = commands.id
+        WHERE command_shares.shared_with_user_id = ?
           AND commands.owner_id != ?
-          AND commands.is_note = 0
+          AND commands.is_note = 1
         ORDER BY commands.created_at DESC
       `,
-      [userId, userId, userId],
+      [userId, userId],
     );
 
-    res.json(commands);
+    res.json(notes);
   } catch (error) {
-    console.error("Error fetching shared commands:", error);
-    res.status(500).json({ error: "Failed to fetch shared commands" });
+    console.error("Error fetching shared notes:", error);
+    res.status(500).json({ error: "Failed to fetch shared notes" });
   }
 });
 
@@ -80,19 +73,17 @@ router.get("/:id", requireAuth, async (req, res) => {
     const db = await getDb();
     const userId = req.session.userId;
 
-    const command = await db.get(
+    const note = await db.get(
       `
-        SELECT commands.*, projects.name AS project_name,
-               owners.username AS owner_username,
+        SELECT commands.*, owners.username AS owner_username,
                GROUP_CONCAT(shared_users.username, ',') AS shared_with,
                CASE WHEN commands.owner_id = ? THEN 1 ELSE 0 END AS is_owner
         FROM commands
         JOIN users owners ON owners.id = commands.owner_id
-        LEFT JOIN projects ON commands.project_id = projects.id
         LEFT JOIN command_shares ON command_shares.command_id = commands.id
         LEFT JOIN users shared_users ON shared_users.id = command_shares.shared_with_user_id
         WHERE commands.id = ?
-          AND commands.is_note = 0
+          AND commands.is_note = 1
           AND (
             commands.owner_id = ?
             OR EXISTS (
@@ -100,72 +91,57 @@ router.get("/:id", requireAuth, async (req, res) => {
               WHERE command_shares.command_id = commands.id
                 AND command_shares.shared_with_user_id = ?
             )
-            OR EXISTS (
-              SELECT 1 FROM project_shares
-              WHERE project_shares.project_id = commands.project_id
-                AND project_shares.shared_with_user_id = ?
-            )
           )
         GROUP BY commands.id
       `,
-      [userId, id, userId, userId, userId],
+      [userId, id, userId, userId],
     );
 
-    if (!command) {
-      return res.status(404).json({ error: "Command not found" });
+    if (!note) {
+      return res.status(404).json({ error: "Note not found" });
     }
 
     res.json({
-      ...command,
-      shared_with: parseSharedList(command.shared_with),
+      ...note,
+      shared_with: parseSharedList(note.shared_with),
     });
   } catch (error) {
-    console.error("Error fetching command detail:", error);
-    res.status(500).json({ error: "Failed to fetch command" });
+    console.error("Error fetching note detail:", error);
+    res.status(500).json({ error: "Failed to fetch note" });
   }
 });
 
 router.post("/", requireAuth, async (req, res) => {
   try {
-    const { name, command, output, note, projectId } = req.body;
+    const { note, name, title } = req.body;
     const ownerId = req.session.userId;
 
-    const commandValue = typeof command === "string" ? command.trim() : "";
-    if (!commandValue) {
-      return res.status(400).json({ error: "Command is required" });
+    const noteValue = typeof note === "string" ? note.trim() : "";
+    if (!noteValue) {
+      return res.status(400).json({ error: "Note is required" });
     }
 
-    const nameValue =
-      typeof name === "string" && name.trim() ? name.trim() : null;
-    const outputValue = normalizeOutput(output);
-
-    let projectIdValue = null;
-    if (projectId) {
-      const db = await getDb();
-      const project = await db.get(
-        "SELECT id FROM projects WHERE id = ? AND owner_id = ?",
-        [projectId, ownerId],
-      );
-      if (!project) {
-        return res.status(403).json({ error: "Invalid project access" });
-      }
-      projectIdValue = projectId;
-    }
+    const rawName =
+      typeof name === "string"
+        ? name
+        : typeof title === "string"
+          ? title
+          : "";
+    const nameValue = rawName.trim() || null;
 
     const db = await getDb();
     const result = await db.run(
       `
         INSERT INTO commands (owner_id, project_id, name, command_text, output_text, note_markdown, is_note)
-        VALUES (?, ?, ?, ?, ?, ?, 0)
+        VALUES (?, NULL, ?, ?, ?, ?, 1)
       `,
-      [ownerId, projectIdValue, nameValue, commandValue, outputValue, note || null],
+      [ownerId, nameValue, NOTE_COMMAND_TEXT, NOTE_OUTPUT_TEXT, noteValue],
     );
 
     const created = await db.get(
       `
-        SELECT commands.*, projects.name AS project_name
+        SELECT commands.*
         FROM commands
-        LEFT JOIN projects ON commands.project_id = projects.id
         WHERE commands.id = ?
       `,
       result.lastID,
@@ -173,56 +149,72 @@ router.post("/", requireAuth, async (req, res) => {
 
     res.status(201).json(created);
   } catch (error) {
-    console.error("Error creating command:", error);
-    res.status(500).json({ error: "Failed to create command" });
+    console.error("Error creating note:", error);
+    res.status(500).json({ error: "Failed to create note" });
   }
 });
 
 router.put("/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, command, output, note } = req.body;
+    const { note, name, title } = req.body;
     const ownerId = req.session.userId;
 
     const db = await getDb();
     const existing = await db.get(
-      "SELECT id FROM commands WHERE id = ? AND owner_id = ? AND is_note = 0",
+      "SELECT id FROM commands WHERE id = ? AND owner_id = ? AND is_note = 1",
       [id, ownerId],
     );
     if (!existing) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
-    const nameValue =
-      typeof name === "string" && name.trim() ? name.trim() : null;
-    const commandValue = typeof command === "string" ? command.trim() : "";
-    if (!commandValue) {
-      return res.status(400).json({ error: "Command is required" });
+    const noteValue = typeof note === "string" ? note.trim() : "";
+    if (!noteValue) {
+      return res.status(400).json({ error: "Note is required" });
     }
-    const outputValue = normalizeOutput(output);
 
-    await db.run(
-      `
-        UPDATE commands
-        SET name = ?, command_text = ?, output_text = ?, note_markdown = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `,
-      [nameValue, commandValue, outputValue, note, id],
-    );
+    const hasName =
+      typeof name === "string" || typeof title === "string";
+    const rawName =
+      typeof name === "string"
+        ? name
+        : typeof title === "string"
+          ? title
+          : "";
+    const nameValue = rawName.trim() || null;
+
+    if (hasName) {
+      await db.run(
+        `
+          UPDATE commands
+          SET name = ?, note_markdown = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `,
+        [nameValue, noteValue, id],
+      );
+    } else {
+      await db.run(
+        `
+          UPDATE commands
+          SET note_markdown = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `,
+        [noteValue, id],
+      );
+    }
 
     const updated = await db.get(
       `
-        SELECT commands.*, projects.name AS project_name,
-               owners.username AS owner_username,
+        SELECT commands.*, owners.username AS owner_username,
                GROUP_CONCAT(shared_users.username, ',') AS shared_with,
                CASE WHEN commands.owner_id = ? THEN 1 ELSE 0 END AS is_owner
         FROM commands
         JOIN users owners ON owners.id = commands.owner_id
-        LEFT JOIN projects ON commands.project_id = projects.id
         LEFT JOIN command_shares ON command_shares.command_id = commands.id
         LEFT JOIN users shared_users ON shared_users.id = command_shares.shared_with_user_id
         WHERE commands.id = ?
-          AND commands.is_note = 0
+          AND commands.is_note = 1
         GROUP BY commands.id
       `,
       [ownerId, id],
@@ -233,8 +225,8 @@ router.put("/:id", requireAuth, async (req, res) => {
       shared_with: parseSharedList(updated.shared_with),
     });
   } catch (error) {
-    console.error("Error updating command:", error);
-    res.status(500).json({ error: "Failed to update command" });
+    console.error("Error updating note:", error);
+    res.status(500).json({ error: "Failed to update note" });
   }
 });
 
@@ -245,7 +237,7 @@ router.delete("/:id", requireAuth, async (req, res) => {
 
     const db = await getDb();
     const existing = await db.get(
-      "SELECT id FROM commands WHERE id = ? AND owner_id = ? AND is_note = 0",
+      "SELECT id FROM commands WHERE id = ? AND owner_id = ? AND is_note = 1",
       [id, ownerId],
     );
     if (!existing) {
@@ -257,8 +249,8 @@ router.delete("/:id", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error("Error deleting command:", error);
-    res.status(500).json({ error: "Failed to delete command" });
+    console.error("Error deleting note:", error);
+    res.status(500).json({ error: "Failed to delete note" });
   }
 });
 
@@ -273,11 +265,11 @@ router.post("/:id/share", requireAuth, async (req, res) => {
     }
 
     const db = await getDb();
-    const command = await db.get(
-      "SELECT id FROM commands WHERE id = ? AND owner_id = ? AND is_note = 0",
+    const note = await db.get(
+      "SELECT id FROM commands WHERE id = ? AND owner_id = ? AND is_note = 1",
       [id, ownerId],
     );
-    if (!command) {
+    if (!note) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
@@ -302,8 +294,8 @@ router.post("/:id/share", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error("Error sharing command:", error);
-    res.status(500).json({ error: "Failed to share command" });
+    console.error("Error sharing note:", error);
+    res.status(500).json({ error: "Failed to share note" });
   }
 });
 

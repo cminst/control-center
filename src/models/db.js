@@ -3,14 +3,6 @@ const { open } = require("sqlite");
 
 let db;
 
-async function addColumnIfMissing(db, table, column, definition) {
-  const columns = await db.all(`PRAGMA table_info(${table})`);
-  const hasColumn = columns.some((col) => col.name === column);
-  if (!hasColumn) {
-    await db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-  }
-}
-
 async function initDb() {
   db = await open({
     filename: "./database.sqlite",
@@ -58,6 +50,7 @@ async function initDb() {
       command_text TEXT NOT NULL,
       output_text TEXT NOT NULL,
       note_markdown TEXT,
+      is_note INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (owner_id) REFERENCES users (id),
@@ -92,8 +85,6 @@ async function initDb() {
   await db.exec(`
     CREATE INDEX IF NOT EXISTS idx_command_shares_user ON command_shares (shared_with_user_id)
   `);
-
-  await addColumnIfMissing(db, "commands", "name", "TEXT");
 
   return db;
 }

@@ -111,6 +111,7 @@
                     <button class="tab-btn active" data-tab="commands">
                         My Commands
                     </button>
+                    <button class="tab-btn" data-tab="notes">Notes</button>
                     <button class="tab-btn" data-tab="shared">
                         Shared With Me
                     </button>
@@ -180,8 +181,57 @@
                         <div id="shared-command-list" class="command-grid"></div>
                     </div>
                     <div>
+                        <h3>Shared Notes</h3>
+                        <div id="shared-note-list" class="command-grid"></div>
+                    </div>
+                    <div>
                         <h3>Shared Projects</h3>
                         <div id="shared-project-list" class="project-grid"></div>
+                    </div>
+                </section>
+
+                <section id="notes-view" class="tab-view hidden">
+                    <div class="panel-grid">
+                        <div class="card">
+                            <h3>New Note</h3>
+                            <form id="note-form" class="command-form note-form">
+                                <div class="form-group">
+                                    <label for="note-title">Title</label>
+                                    <input
+                                        type="text"
+                                        id="note-title"
+                                        placeholder="Note title"
+                                        autocomplete="off"
+                                    />
+                                </div>
+                                <div class="form-group note-body">
+                                    <textarea
+                                        id="note-text"
+                                        class="mono-input note-textarea"
+                                        placeholder="Write a markdown note..."
+                                        aria-label="Note markdown"
+                                        autocomplete="off"
+                                        wrap="soft"
+                                        required
+                                    ></textarea>
+                                </div>
+                                <div class="form-actions">
+                                    <button
+                                        type="submit"
+                                        class="btn primary-btn"
+                                        id="note-create-button"
+                                    >
+                                        Create Note
+                                    </button>
+                                </div>
+                                <p id="note-error" class="error-message"></p>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3>My Notes</h3>
+                        <div id="note-gallery" class="command-grid"></div>
                     </div>
                 </section>
 

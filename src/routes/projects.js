@@ -64,6 +64,7 @@ router.get("/", requireAuth, async (req, res) => {
         FROM commands
         JOIN projects ON commands.project_id = projects.id
         WHERE commands.owner_id = ?
+          AND commands.is_note = 0
         ORDER BY commands.created_at DESC
       `,
       ownerId,
@@ -121,6 +122,7 @@ router.get("/shared", requireAuth, async (req, res) => {
           JOIN projects ON commands.project_id = projects.id
           JOIN users owners ON owners.id = projects.owner_id
           WHERE commands.project_id IN (${placeholders})
+            AND commands.is_note = 0
           ORDER BY commands.created_at DESC
         `,
         projectIds,
@@ -185,6 +187,7 @@ router.get("/:id/commands", requireAuth, async (req, res) => {
         FROM commands
         JOIN projects ON commands.project_id = projects.id
         WHERE commands.project_id = ?
+          AND commands.is_note = 0
         ORDER BY commands.created_at DESC
       `,
       id,
@@ -223,8 +226,8 @@ router.post("/:id/commands", requireAuth, async (req, res) => {
 
     const result = await db.run(
       `
-        INSERT INTO commands (owner_id, project_id, name, command_text, output_text, note_markdown)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO commands (owner_id, project_id, name, command_text, output_text, note_markdown, is_note)
+        VALUES (?, ?, ?, ?, ?, ?, 0)
       `,
       [ownerId, id, nameValue, commandValue, outputValue, note || null],
     );
