@@ -1539,10 +1539,17 @@ input:checked + .slider:before {
 }
 
 .note-rendered.markdown-body pre {
-    background: #eef2f7;
+    background: #d9e2ef;
+    border: 1px solid #c2cedf;
     border-radius: 12px;
     padding: 0.75rem 0.9rem;
     overflow-x: auto;
+}
+
+.note-rendered.markdown-body pre code {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
 }
 
 .note-fallback {
