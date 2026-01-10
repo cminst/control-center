@@ -1114,7 +1114,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     activeNoteId = noteId;
     activeNoteData = null;
-    isPreviewingNote = false;
+    isPreviewingNote = true;
     activeDetailType = "note";
     detailFallbackPath = "/notes";
 
@@ -1132,7 +1132,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       activeNoteData = data;
-      isPreviewingNote = !data.is_owner;
+      isPreviewingNote = true;
       detailNoteLastSaved = {
         title: data.name || "",
         note: data.note_markdown || "",
