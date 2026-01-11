@@ -276,6 +276,50 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
+router.delete("/:id", requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const ownerId = req.session.userId;
+  let transactionStarted = false;
+
+  try {
+    const db = await getDb();
+    const project = await db.get(
+      "SELECT id FROM projects WHERE id = ? AND owner_id = ?",
+      [id, ownerId],
+    );
+    if (!project) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    await db.exec("BEGIN");
+    transactionStarted = true;
+    await db.run(
+      `
+        DELETE FROM command_shares
+        WHERE command_id IN (SELECT id FROM commands WHERE project_id = ?)
+      `,
+      id,
+    );
+    await db.run("DELETE FROM commands WHERE project_id = ?", id);
+    await db.run("DELETE FROM project_shares WHERE project_id = ?", id);
+    await db.run("DELETE FROM projects WHERE id = ?", id);
+    await db.exec("COMMIT");
+
+    res.json({ success: true });
+  } catch (error) {
+    if (transactionStarted) {
+      try {
+        const db = await getDb();
+        await db.exec("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("Error rolling back project delete:", rollbackError);
+      }
+    }
+    console.error("Error deleting project:", error);
+    res.status(500).json({ error: "Failed to delete project" });
+  }
+});
+
 router.post("/:id/share", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;

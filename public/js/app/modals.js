@@ -34,13 +34,32 @@ export function openDeleteModal() {
   if (state.activeDetailType === "note") {
     state.activeDeleteContext = { type: "note", id: state.activeNoteId };
     const title = getNoteTitle(state.activeNoteData);
+    if (dom.deleteModalTitle) {
+      dom.deleteModalTitle.textContent = "Delete note";
+    }
     dom.deleteModalDescription.textContent = `Delete note "${title}"? This cannot be undone.`;
+  } else if (state.activeDetailType === "project") {
+    state.activeDeleteContext = {
+      type: "project",
+      id: state.activeProjectId,
+    };
+    const projectName =
+      state.activeProjectData?.name?.trim() ||
+      dom.projectDetailTitle?.textContent?.trim() ||
+      "Project";
+    if (dom.deleteModalTitle) {
+      dom.deleteModalTitle.textContent = "Delete project";
+    }
+    dom.deleteModalDescription.textContent = `Delete project "${projectName}"? This will delete all commands inside it. This cannot be undone.`;
   } else {
     state.activeDeleteContext = { type: "command", id: state.activeCommandId };
     const snippet = truncateCommandText(
       state.activeCommandData?.command_text || "",
       48,
     );
+    if (dom.deleteModalTitle) {
+      dom.deleteModalTitle.textContent = "Delete command";
+    }
     dom.deleteModalDescription.textContent = `Delete "${snippet}"? This cannot be undone.`;
   }
   dom.deleteModalStatus.textContent = "";
@@ -107,7 +126,11 @@ export async function submitDelete() {
 
   try {
     const endpoint =
-      type === "note" ? `/api/notes/${id}` : `/api/commands/${id}`;
+      type === "note"
+        ? `/api/notes/${id}`
+        : type === "project"
+          ? `/api/projects/${id}`
+          : `/api/commands/${id}`;
     const response = await fetch(endpoint, { method: "DELETE" });
     const data = await response.json().catch(() => ({}));
     if (response.ok) {
@@ -123,6 +146,10 @@ export async function submitDelete() {
         }
         handleBackFallback();
         return;
+      } else if (type === "project") {
+        state.activeProjectId = null;
+        state.activeProjectData = null;
+        state.activeDetailType = null;
       } else {
         state.activeCommandData = null;
         state.activeCommandId = null;
@@ -133,12 +160,18 @@ export async function submitDelete() {
         data.error ||
         (type === "note"
           ? "Unable to delete note."
-          : "Unable to delete command.");
+          : type === "project"
+            ? "Unable to delete project."
+            : "Unable to delete command.");
     }
   } catch (error) {
     console.error("Delete command error:", error);
     dom.deleteModalStatus.textContent =
-      type === "note" ? "Unable to delete note." : "Unable to delete command.";
+      type === "note"
+        ? "Unable to delete note."
+        : type === "project"
+          ? "Unable to delete project."
+          : "Unable to delete command.";
   } finally {
     dom.deleteModalConfirm.disabled = false;
   }

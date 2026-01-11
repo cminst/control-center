@@ -116,6 +116,8 @@ export async function loadProjects() {
 
 export async function loadProjectDetail(projectId) {
   state.activeProjectId = projectId;
+  state.activeProjectData = null;
+  state.activeDetailType = "project";
   dom.projectCommandError.textContent = "";
   dom.projectCommandGallery.innerHTML = "";
 
@@ -131,6 +133,9 @@ export async function loadProjectDetail(projectId) {
         '<div class="empty-state">Project not found.</div>';
       dom.projectCommandCard.classList.add("hidden");
       dom.projectShareButton.classList.add("hidden");
+      if (dom.projectDeleteButton) {
+        dom.projectDeleteButton.classList.add("hidden");
+      }
       return;
     }
 
@@ -139,10 +144,14 @@ export async function loadProjectDetail(projectId) {
 
     dom.projectDetailTitle.textContent = project.name || "Project";
     dom.projectBreadcrumb.textContent = "Projects";
+    state.activeProjectData = project;
 
     const isOwner = Boolean(project.is_owner);
     dom.projectCommandCard.classList.toggle("hidden", !isOwner);
     dom.projectShareButton.classList.toggle("hidden", !isOwner);
+    if (dom.projectDeleteButton) {
+      dom.projectDeleteButton.classList.toggle("hidden", !isOwner);
+    }
 
     state.detailFallbackPath = "/projects";
 
@@ -151,6 +160,11 @@ export async function loadProjectDetail(projectId) {
     console.error("Load project detail error:", error);
     dom.projectCommandGallery.innerHTML =
       '<div class="empty-state">Unable to load project.</div>';
+    dom.projectShareButton.classList.add("hidden");
+    dom.projectCommandCard.classList.add("hidden");
+    if (dom.projectDeleteButton) {
+      dom.projectDeleteButton.classList.add("hidden");
+    }
   }
 }
 

@@ -193,7 +193,7 @@ export function bindEvents() {
       "[data-action='open-delete-modal']",
     );
     if (openDeleteBtn) {
-      if (state.activeCommandId || state.activeNoteId) {
+      if (state.activeCommandId || state.activeNoteId || state.activeProjectId) {
         openDeleteModal();
       }
       return;

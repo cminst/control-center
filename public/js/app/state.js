@@ -1,6 +1,7 @@
 export const state = {
   currentUser: null,
   activeProjectId: null,
+  activeProjectData: null,
   activeCommandId: null,
   activeCommandData: null,
   activeNoteId: null,

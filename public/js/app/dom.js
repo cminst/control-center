@@ -35,6 +35,7 @@ export function initDom() {
   dom.noteCreateButton = document.getElementById("note-create-button");
   dom.projectCommandTextInput = document.getElementById("project-command-text");
   dom.projectShareButton = document.getElementById("project-share-button");
+  dom.projectDeleteButton = document.getElementById("project-delete-button");
   dom.commandDetailCard = document.getElementById("command-detail-card");
   dom.commandBreadcrumb = document.getElementById("command-breadcrumb");
   dom.commandDetailTitle = document.getElementById("command-detail-title");
@@ -47,6 +48,7 @@ export function initDom() {
   dom.shareModalStatus = document.getElementById("share-modal-status");
   dom.shareModalSubmit = document.getElementById("share-modal-submit");
   dom.deleteModal = document.getElementById("delete-modal");
+  dom.deleteModalTitle = document.getElementById("delete-modal-title");
   dom.deleteModalDescription = document.getElementById(
     "delete-modal-description",
   );
