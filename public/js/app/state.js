@@ -16,6 +16,7 @@ export const state = {
   noteAutosaveMode: null,
   noteAutosaveDirty: false,
   noteAutosavePending: false,
+  pendingCommandClone: null,
   newNoteDraftId: null,
   newNoteLastSaved: { title: "", note: "" },
   detailNoteLastSaved: { title: "", note: "" },

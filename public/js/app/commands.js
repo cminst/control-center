@@ -128,6 +128,9 @@ export async function loadCommandDetail(commandId) {
         '<div class="empty-state">Command not found.</div>';
       dom.commandShareButton.classList.add("hidden");
       dom.commandEditButton.classList.add("hidden");
+      if (dom.commandCloneButton) {
+        dom.commandCloneButton.classList.add("hidden");
+      }
       dom.commandDeleteButton.classList.add("hidden");
       state.detailFallbackPath = "/my_commands";
       return;
@@ -147,6 +150,9 @@ export async function loadCommandDetail(commandId) {
     });
     dom.commandShareButton.classList.toggle("hidden", !data.is_owner);
     dom.commandEditButton.classList.toggle("hidden", !data.is_owner);
+    if (dom.commandCloneButton) {
+      dom.commandCloneButton.classList.toggle("hidden", !data.is_owner);
+    }
     dom.commandDeleteButton.classList.toggle("hidden", !data.is_owner);
 
     if (data.project_id && data.project_name) {
@@ -165,11 +171,78 @@ export async function loadCommandDetail(commandId) {
       '<div class="empty-state">Unable to load command.</div>';
     dom.commandShareButton.classList.add("hidden");
     dom.commandEditButton.classList.add("hidden");
+    if (dom.commandCloneButton) {
+      dom.commandCloneButton.classList.add("hidden");
+    }
     dom.commandDeleteButton.classList.add("hidden");
     if (dom.commandDetailTitle) {
       dom.commandDetailTitle.textContent = "Command Details";
     }
   }
+}
+
+function populateCloneForm({
+  nameInputId,
+  commandInputId,
+  outputInputId,
+  noteInputId,
+}) {
+  const clone = state.pendingCommandClone;
+  if (!clone) return false;
+
+  const nameInput = document.getElementById(nameInputId);
+  const commandInput = document.getElementById(commandInputId);
+  const outputInput = document.getElementById(outputInputId);
+  const noteInput = document.getElementById(noteInputId);
+
+  if (!nameInput || !commandInput) return false;
+
+  nameInput.value = clone.name || "";
+  commandInput.value = clone.command || "";
+  if (outputInput) {
+    outputInput.value = clone.output || "";
+  }
+  if (noteInput) {
+    noteInput.value = clone.note || "";
+  }
+
+  setupAutosizeTextarea(commandInput);
+  window.setTimeout(() => {
+    nameInput.focus();
+    const length = nameInput.value.length;
+    if (nameInput.setSelectionRange) {
+      nameInput.setSelectionRange(length, length);
+    }
+  }, 0);
+
+  state.pendingCommandClone = null;
+  return true;
+}
+
+export function applyPendingCommandCloneToCommandsView() {
+  if (!state.pendingCommandClone) return false;
+  if (state.pendingCommandClone.projectId) return false;
+  return populateCloneForm({
+    nameInputId: "command-name",
+    commandInputId: "command-text",
+    outputInputId: "command-output",
+    noteInputId: "command-note",
+  });
+}
+
+export function applyPendingCommandCloneToProject(projectId) {
+  if (!state.pendingCommandClone) return false;
+  if (!state.pendingCommandClone.projectId) return false;
+  if (String(state.pendingCommandClone.projectId) !== String(projectId)) {
+    return false;
+  }
+
+  return populateCloneForm({
+    nameInputId: "project-command-name",
+    commandInputId: "project-command-text",
+    outputInputId: "project-command-output",
+    noteInputId: "project-command-note",
+  });
 }
 
 export function renderCommandGallery(container, commands, options = {}) {

@@ -149,6 +149,48 @@ export function bindEvents() {
       return;
     }
 
+    const cloneBtn = event.target.closest("[data-action='clone-command']");
+    if (cloneBtn) {
+      if (
+        state.activeDetailType !== "command" ||
+        !state.activeCommandData ||
+        !state.activeCommandData.is_owner
+      ) {
+        return;
+      }
+
+      let name = state.activeCommandData.name || "";
+      let command = state.activeCommandData.command_text || "";
+      let output = state.activeCommandData.output_text || "";
+      let note = state.activeCommandData.note_markdown || "";
+
+      if (state.isEditingCommand) {
+        const nameInput = document.getElementById("edit-command-name");
+        const commandInput = document.getElementById("edit-command-text");
+        const outputInput = document.getElementById("edit-command-output");
+        const noteInput = document.getElementById("edit-command-note");
+        name = nameInput ? nameInput.value.trim() : name;
+        command = commandInput ? commandInput.value : command;
+        output = outputInput ? outputInput.value : output;
+        note = noteInput ? noteInput.value : note;
+      }
+
+      state.pendingCommandClone = {
+        name,
+        command,
+        output,
+        note,
+        projectId: state.activeCommandData.project_id || null,
+      };
+
+      if (state.pendingCommandClone.projectId) {
+        navigateTo(`/projects/${state.pendingCommandClone.projectId}`);
+      } else {
+        navigateTo("/my_commands");
+      }
+      return;
+    }
+
     const cancelEditBtn = event.target.closest(
       "[data-action='cancel-edit']",
     );

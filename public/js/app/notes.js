@@ -96,6 +96,9 @@ export async function loadNoteDetail(noteId) {
         '<div class="empty-state">Note not found.</div>';
       dom.commandShareButton.classList.add("hidden");
       dom.commandEditButton.classList.add("hidden");
+      if (dom.commandCloneButton) {
+        dom.commandCloneButton.classList.add("hidden");
+      }
       dom.commandDeleteButton.classList.add("hidden");
       state.detailFallbackPath = "/notes";
       return;
@@ -111,6 +114,9 @@ export async function loadNoteDetail(noteId) {
 
     dom.commandShareButton.classList.toggle("hidden", !data.is_owner);
     dom.commandEditButton.classList.toggle("hidden", !data.is_owner);
+    if (dom.commandCloneButton) {
+      dom.commandCloneButton.classList.add("hidden");
+    }
     dom.commandDeleteButton.classList.toggle("hidden", !data.is_owner);
 
     state.detailFallbackPath = "/notes";
@@ -121,6 +127,9 @@ export async function loadNoteDetail(noteId) {
       '<div class="empty-state">Unable to load note.</div>';
     dom.commandShareButton.classList.add("hidden");
     dom.commandEditButton.classList.add("hidden");
+    if (dom.commandCloneButton) {
+      dom.commandCloneButton.classList.add("hidden");
+    }
     dom.commandDeleteButton.classList.add("hidden");
     if (dom.commandDetailTitle) {
       dom.commandDetailTitle.textContent = "Note";

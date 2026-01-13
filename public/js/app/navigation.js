@@ -1,7 +1,11 @@
 import { dom } from "./dom.js";
 import { state } from "./state.js";
 import { normalizePath } from "./utils.js";
-import { loadCommands, loadCommandDetail } from "./commands.js";
+import {
+  applyPendingCommandCloneToCommandsView,
+  loadCommands,
+  loadCommandDetail,
+} from "./commands.js";
 import {
   loadNotes,
   loadNoteDetail,
@@ -111,6 +115,7 @@ export function showView(viewKey) {
 export function showCommandsView() {
   setActiveTab("commands");
   showView("commands");
+  applyPendingCommandCloneToCommandsView();
   loadCommands();
 }
 

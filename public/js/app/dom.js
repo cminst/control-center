@@ -40,6 +40,7 @@ export function initDom() {
   dom.commandBreadcrumb = document.getElementById("command-breadcrumb");
   dom.commandDetailTitle = document.getElementById("command-detail-title");
   dom.commandEditButton = document.getElementById("command-edit-button");
+  dom.commandCloneButton = document.getElementById("command-clone-button");
   dom.commandShareButton = document.getElementById("command-share-button");
   dom.commandDeleteButton = document.getElementById("command-delete-button");
   dom.shareModal = document.getElementById("share-modal");

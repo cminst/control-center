@@ -1,7 +1,10 @@
 import { dom } from "./dom.js";
 import { state } from "./state.js";
 import { escapeHtml, formatDate, setupAutosizeTextarea } from "./utils.js";
-import { renderCommandGallery } from "./commands.js";
+import {
+  applyPendingCommandCloneToProject,
+  renderCommandGallery,
+} from "./commands.js";
 
 export function initProjects() {
   setupAutosizeTextarea(dom.projectCommandTextInput);
@@ -156,6 +159,9 @@ export async function loadProjectDetail(projectId) {
     state.detailFallbackPath = "/projects";
 
     renderCommandGallery(dom.projectCommandGallery, commands);
+    if (isOwner) {
+      applyPendingCommandCloneToProject(projectId);
+    }
   } catch (error) {
     console.error("Load project detail error:", error);
     dom.projectCommandGallery.innerHTML =
