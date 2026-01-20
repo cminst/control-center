@@ -688,7 +688,7 @@ input:checked + .slider:before {
 }
 
 .command-form textarea.command-input {
-    min-height: calc(1.2em + 1.7rem + 2px);
+    min-height: calc(2em + 1.7rem + 2px);
     max-height: 360px;
     overflow-y: hidden;
     resize: none;
