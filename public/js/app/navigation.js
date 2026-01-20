@@ -107,9 +107,50 @@ export function showView(viewKey) {
     state.isPreviewingNote = false;
     state.activeDetailType = null;
   }
+  const nextView = dom.views[viewKey];
+  if (!nextView) return;
+  const prefersReducedMotion =
+    window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const transitionMs = prefersReducedMotion ? 0 : 260;
+
+  const hideView = (view) => {
+    if (!view || view.classList.contains("hidden")) return;
+    view.classList.remove("is-active");
+    view.classList.add("is-exiting");
+
+    const finalize = () => {
+      if (!view.classList.contains("is-exiting")) return;
+      view.classList.add("hidden");
+      view.classList.remove("is-exiting");
+    };
+
+    if (transitionMs === 0) {
+      finalize();
+      return;
+    }
+
+    view.addEventListener("transitionend", finalize, { once: true });
+    setTimeout(finalize, transitionMs + 60);
+  };
+
   Object.entries(dom.views).forEach(([key, view]) => {
-    view.classList.toggle("hidden", key !== viewKey);
+    if (key !== viewKey) {
+      hideView(view);
+    }
   });
+
+  if (nextView.classList.contains("hidden")) {
+    nextView.classList.remove("hidden");
+    nextView.classList.remove("is-exiting");
+    nextView.classList.remove("is-active");
+    requestAnimationFrame(() => {
+      nextView.classList.add("is-active");
+    });
+  } else {
+    nextView.classList.remove("is-exiting");
+    nextView.classList.add("is-active");
+  }
 }
 
 export function showCommandsView() {
