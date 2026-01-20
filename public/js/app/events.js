@@ -29,6 +29,10 @@ import {
 } from "./modals.js";
 import { initDragLinking, shouldSuppressCardClick } from "./dragLinking.js";
 
+function scrollToTopInstant() {
+  window.scrollTo(0, 0);
+}
+
 export function bindEvents() {
   initDragLinking();
 
@@ -76,6 +80,7 @@ export function bindEvents() {
       if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-command-id]");
       if (!card) return;
+      scrollToTopInstant();
       navigateTo(`/commands/${card.dataset.commandId}`);
     });
   }
@@ -85,6 +90,7 @@ export function bindEvents() {
       if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-note-id]");
       if (!card) return;
+      scrollToTopInstant();
       navigateTo(`/notes/${card.dataset.noteId}`);
     });
   }
@@ -94,6 +100,7 @@ export function bindEvents() {
       if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-command-id]");
       if (!card) return;
+      scrollToTopInstant();
       navigateTo(`/commands/${card.dataset.commandId}`);
     });
   }
@@ -103,6 +110,7 @@ export function bindEvents() {
       if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-note-id]");
       if (!card) return;
+      scrollToTopInstant();
       navigateTo(`/notes/${card.dataset.noteId}`);
     });
   }
@@ -112,6 +120,7 @@ export function bindEvents() {
       if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-command-id]");
       if (!card) return;
+      scrollToTopInstant();
       navigateTo(`/commands/${card.dataset.commandId}`);
     });
   }
