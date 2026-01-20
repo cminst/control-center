@@ -9,6 +9,7 @@ import {
 } from "./utils.js";
 import { enhanceMathRendering, renderMarkdown } from "./markdown.js";
 import { setActiveTab } from "./tabs.js";
+import { sortItemsByGroup } from "./grouping.js";
 
 const NOTE_AUTOSAVE_INTERVAL = 5000;
 
@@ -69,7 +70,9 @@ export async function loadNotes() {
     const response = await fetch("/api/notes");
     const data = await response.json();
     if (response.ok) {
-      renderNoteGallery(dom.noteGallery, data);
+      renderNoteGallery(dom.noteGallery, data, {
+        enableLinking: true,
+      });
     }
   } catch (error) {
     console.error("Load notes error:", error);
@@ -199,7 +202,8 @@ export function renderNoteGallery(container, notes, options = {}) {
     return;
   }
 
-  container.innerHTML = notes
+  const ordered = sortItemsByGroup(notes);
+  container.innerHTML = ordered
     .map((note) => renderNotePreviewCard(note, options))
     .join("");
 }
@@ -211,9 +215,15 @@ export function renderNotePreviewCard(note, options = {}) {
     options.showOwner && note.owner_username
       ? `Shared by ${note.owner_username}`
       : "";
+  const groupIdAttr = note.group_id ? ` data-group-id="${note.group_id}"` : "";
+  const groupColorAttr = note.group_color
+    ? ` data-group-color="${escapeHtml(note.group_color)}"`
+    : "";
+  const groupClass = note.group_id ? " grouped" : "";
+  const draggableAttr = options.enableLinking ? ' draggable="true"' : "";
 
   return `
-      <article class="command-preview-card" data-note-id="${note.id}">
+      <article class="command-preview-card${groupClass}" data-note-id="${note.id}"${groupIdAttr}${groupColorAttr}${draggableAttr}>
         <div class="command-preview-meta">${escapeHtml(createdAt)}</div>
         ${ownerLabel ? `<div class="command-preview-meta">${escapeHtml(ownerLabel)}</div>` : ""}
         <div class="command-preview">${escapeHtml(title)}</div>

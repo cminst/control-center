@@ -42,10 +42,21 @@ async function initDb() {
   `);
 
   await db.exec(`
+    CREATE TABLE IF NOT EXISTS command_groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_id INTEGER NOT NULL,
+      color TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (owner_id) REFERENCES users (id)
+    )
+  `);
+
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS commands (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       owner_id INTEGER NOT NULL,
       project_id INTEGER,
+      group_id INTEGER,
       name TEXT,
       command_text TEXT NOT NULL,
       output_text TEXT NOT NULL,
@@ -54,7 +65,8 @@ async function initDb() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (owner_id) REFERENCES users (id),
-      FOREIGN KEY (project_id) REFERENCES projects (id)
+      FOREIGN KEY (project_id) REFERENCES projects (id),
+      FOREIGN KEY (group_id) REFERENCES command_groups (id)
     )
   `);
 
@@ -70,12 +82,26 @@ async function initDb() {
     )
   `);
 
+  const commandColumns = await db.all("PRAGMA table_info(commands)");
+  const hasGroupId = commandColumns.some((column) => column.name === "group_id");
+  if (!hasGroupId) {
+    await db.exec("ALTER TABLE commands ADD COLUMN group_id INTEGER");
+  }
+
   await db.exec(`
     CREATE INDEX IF NOT EXISTS idx_commands_owner ON commands (owner_id)
   `);
 
   await db.exec(`
     CREATE INDEX IF NOT EXISTS idx_commands_project ON commands (project_id)
+  `);
+
+  await db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_commands_group ON commands (group_id)
+  `);
+
+  await db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_groups_owner ON command_groups (owner_id)
   `);
 
   await db.exec(`

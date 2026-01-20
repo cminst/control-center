@@ -4,6 +4,16 @@ const { requireAuth } = require("../utils/auth");
 
 const router = express.Router();
 
+const GROUP_COLORS = [
+  "yellow",
+  "blue",
+  "green",
+  "purple",
+  "pink",
+  "orange",
+  "red",
+];
+
 function parseSharedList(sharedWith) {
   if (!sharedWith) return [];
   return sharedWith.split(",").filter(Boolean);
@@ -14,15 +24,42 @@ function normalizeOutput(output) {
   return output.trim() === "" ? "N/A" : output;
 }
 
+async function pickGroupColor(db, ownerId) {
+  const rows = await db.all(
+    `
+      SELECT color, COUNT(*) as count
+      FROM command_groups
+      WHERE owner_id = ?
+      GROUP BY color
+    `,
+    ownerId,
+  );
+  const counts = new Map(
+    rows.map((row) => [row.color, Number(row.count || 0)]),
+  );
+  let bestColor = GROUP_COLORS[0];
+  let bestCount = Number.POSITIVE_INFINITY;
+  GROUP_COLORS.forEach((color) => {
+    const count = counts.get(color) || 0;
+    if (count < bestCount) {
+      bestColor = color;
+      bestCount = count;
+    }
+  });
+  return bestColor;
+}
+
 router.get("/mine", requireAuth, async (req, res) => {
   try {
     const db = await getDb();
     const commands = await db.all(
       `
         SELECT commands.*, projects.name AS project_name,
+               command_groups.color AS group_color,
                GROUP_CONCAT(shared_users.username, ',') AS shared_with
         FROM commands
         LEFT JOIN projects ON commands.project_id = projects.id
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         LEFT JOIN command_shares ON command_shares.command_id = commands.id
         LEFT JOIN users shared_users ON shared_users.id = command_shares.shared_with_user_id
         WHERE commands.owner_id = ?
@@ -53,10 +90,12 @@ router.get("/shared", requireAuth, async (req, res) => {
     const commands = await db.all(
       `
         SELECT DISTINCT commands.*, projects.id AS project_id, projects.name AS project_name,
+               command_groups.color AS group_color,
                owners.username AS owner_username
         FROM commands
         JOIN users owners ON owners.id = commands.owner_id
         LEFT JOIN projects ON commands.project_id = projects.id
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         LEFT JOIN command_shares ON command_shares.command_id = commands.id
         LEFT JOIN project_shares ON project_shares.project_id = commands.project_id
         WHERE (command_shares.shared_with_user_id = ? OR project_shares.shared_with_user_id = ?)
@@ -83,12 +122,14 @@ router.get("/:id", requireAuth, async (req, res) => {
     const command = await db.get(
       `
         SELECT commands.*, projects.name AS project_name,
+               command_groups.color AS group_color,
                owners.username AS owner_username,
                GROUP_CONCAT(shared_users.username, ',') AS shared_with,
                CASE WHEN commands.owner_id = ? THEN 1 ELSE 0 END AS is_owner
         FROM commands
         JOIN users owners ON owners.id = commands.owner_id
         LEFT JOIN projects ON commands.project_id = projects.id
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         LEFT JOIN command_shares ON command_shares.command_id = commands.id
         LEFT JOIN users shared_users ON shared_users.id = command_shares.shared_with_user_id
         WHERE commands.id = ?
@@ -163,9 +204,11 @@ router.post("/", requireAuth, async (req, res) => {
 
     const created = await db.get(
       `
-        SELECT commands.*, projects.name AS project_name
+        SELECT commands.*, projects.name AS project_name,
+               command_groups.color AS group_color
         FROM commands
         LEFT JOIN projects ON commands.project_id = projects.id
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         WHERE commands.id = ?
       `,
       result.lastID,
@@ -213,12 +256,14 @@ router.put("/:id", requireAuth, async (req, res) => {
     const updated = await db.get(
       `
         SELECT commands.*, projects.name AS project_name,
+               command_groups.color AS group_color,
                owners.username AS owner_username,
                GROUP_CONCAT(shared_users.username, ',') AS shared_with,
                CASE WHEN commands.owner_id = ? THEN 1 ELSE 0 END AS is_owner
         FROM commands
         JOIN users owners ON owners.id = commands.owner_id
         LEFT JOIN projects ON commands.project_id = projects.id
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         LEFT JOIN command_shares ON command_shares.command_id = commands.id
         LEFT JOIN users shared_users ON shared_users.id = command_shares.shared_with_user_id
         WHERE commands.id = ?
@@ -259,6 +304,89 @@ router.delete("/:id", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Error deleting command:", error);
     res.status(500).json({ error: "Failed to delete command" });
+  }
+});
+
+router.post("/link", requireAuth, async (req, res) => {
+  try {
+    const ownerId = req.session.userId;
+    const sourceId = Number.parseInt(req.body?.sourceId, 10);
+    const targetId = Number.parseInt(req.body?.targetId, 10);
+
+    if (!Number.isFinite(sourceId) || !Number.isFinite(targetId)) {
+      return res.status(400).json({ error: "Invalid link request" });
+    }
+    if (sourceId === targetId) {
+      return res.status(400).json({ error: "Cannot link item to itself" });
+    }
+
+    const db = await getDb();
+    const [source, target] = await Promise.all([
+      db.get(
+        "SELECT id, group_id FROM commands WHERE id = ? AND owner_id = ?",
+        [sourceId, ownerId],
+      ),
+      db.get(
+        "SELECT id, group_id FROM commands WHERE id = ? AND owner_id = ?",
+        [targetId, ownerId],
+      ),
+    ]);
+
+    if (!source || !target) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    let groupId = null;
+    if (source.group_id && !target.group_id) {
+      await db.run(
+        "UPDATE commands SET group_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        [sourceId],
+      );
+    } else if (target.group_id) {
+      groupId = target.group_id;
+      if (source.group_id !== groupId) {
+        await db.run(
+          "UPDATE commands SET group_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+          [groupId, sourceId],
+        );
+      }
+    } else if (source.group_id) {
+      groupId = source.group_id;
+      await db.run(
+        "UPDATE commands SET group_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        [groupId, targetId],
+      );
+    } else {
+      const color = await pickGroupColor(db, ownerId);
+      const result = await db.run(
+        "INSERT INTO command_groups (owner_id, color) VALUES (?, ?)",
+        [ownerId, color],
+      );
+      groupId = result.lastID;
+      await db.run(
+        "UPDATE commands SET group_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (?, ?)",
+        [groupId, sourceId, targetId],
+      );
+    }
+
+    await db.run(
+      `
+        DELETE FROM command_groups
+        WHERE owner_id = ?
+          AND id NOT IN (
+            SELECT DISTINCT group_id
+            FROM commands
+            WHERE group_id IS NOT NULL
+              AND owner_id = ?
+          )
+      `,
+      [ownerId, ownerId],
+    );
+
+    res.json({ success: true, groupId });
+  } catch (error) {
+    console.error("Error linking items:", error);
+    res.status(500).json({ error: "Failed to link items" });
   }
 });
 

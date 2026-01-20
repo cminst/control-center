@@ -226,14 +226,16 @@ h3 {
 }
 
 .primary-btn {
-    background: linear-gradient(120deg, var(--primary-color), var(--primary-strong));
+    background: #2a6ee6;
     color: var(--white);
+    border-color: #2a6ee6;
     width: 100%;
     /*box-shadow: 0 14px 25px rgba(31, 111, 235, 0.25);*/
 }
 
 .primary-btn:hover {
-    background: linear-gradient(120deg, #205fd7, var(--primary-strong));
+    background: #1f63dd;
+    border-color: #1f63dd;
     transform: translateY(-1px);
 }
 
@@ -1205,7 +1207,7 @@ input:checked + .slider:before {
 .command-form .mono-input {
     font-family: Consolas, "SFMono-Regular", Menlo, Monaco, "Liberation Mono",
         monospace;
-    background: #e5e7eb;
+    background: #f1f3f6;
     color: #111827;
 }
 
@@ -1305,6 +1307,62 @@ input:checked + .slider:before {
     gap: 0.75rem;
     cursor: pointer;
     transition: var(--transition);
+}
+
+.command-preview-card[draggable="true"] {
+    cursor: grab;
+}
+
+.command-preview-card[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.command-preview-card.grouped {
+    border-color: rgba(31, 111, 235, 0.12);
+}
+
+.command-preview-card[data-group-color="yellow"] {
+    background: #fff8e3;
+    border-color: #f2d7a0;
+}
+
+.command-preview-card[data-group-color="blue"] {
+    background: #eef5ff;
+    border-color: #bcd2ff;
+}
+
+.command-preview-card[data-group-color="green"] {
+    background: #effcf4;
+    border-color: #b9e7c8;
+}
+
+.command-preview-card[data-group-color="purple"] {
+    background: #f4efff;
+    border-color: #d4c6f3;
+}
+
+.command-preview-card[data-group-color="pink"] {
+    background: #fff0f5;
+    border-color: #f3c2d2;
+}
+
+.command-preview-card[data-group-color="orange"] {
+    background: #fff3e6;
+    border-color: #f0c6a0;
+}
+
+.command-preview-card[data-group-color="red"] {
+    background: #ffecec;
+    border-color: #f2b3b3;
+}
+
+.command-preview-card.dragging {
+    opacity: 0.75;
+}
+
+.command-preview-card.link-drop-target {
+    border-color: rgba(31, 111, 235, 0.6);
+    box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.15);
 }
 
 .command-preview-card:hover {
@@ -1410,7 +1468,7 @@ input:checked + .slider:before {
 }
 
 .output-block {
-    background: #e5e7eb;
+    background: #f1f3f6;
     color: #111827;
     padding: 0.9rem 1rem;
     border-radius: 12px;

@@ -60,9 +60,11 @@ router.get("/", requireAuth, async (req, res) => {
 
     const commands = await db.all(
       `
-        SELECT commands.*, projects.name AS project_name
+        SELECT commands.*, projects.name AS project_name,
+               command_groups.color AS group_color
         FROM commands
         JOIN projects ON commands.project_id = projects.id
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         WHERE commands.owner_id = ?
           AND commands.is_note = 0
         ORDER BY commands.created_at DESC
@@ -117,10 +119,12 @@ router.get("/shared", requireAuth, async (req, res) => {
       const commands = await db.all(
         `
           SELECT commands.*, projects.name AS project_name,
+                 command_groups.color AS group_color,
                  owners.username AS owner_username
           FROM commands
           JOIN projects ON commands.project_id = projects.id
           JOIN users owners ON owners.id = projects.owner_id
+          LEFT JOIN command_groups ON commands.group_id = command_groups.id
           WHERE commands.project_id IN (${placeholders})
             AND commands.is_note = 0
           ORDER BY commands.created_at DESC
@@ -183,9 +187,11 @@ router.get("/:id/commands", requireAuth, async (req, res) => {
 
     const commands = await db.all(
       `
-        SELECT commands.*, projects.name AS project_name
+        SELECT commands.*, projects.name AS project_name,
+               command_groups.color AS group_color
         FROM commands
         JOIN projects ON commands.project_id = projects.id
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         WHERE commands.project_id = ?
           AND commands.is_note = 0
         ORDER BY commands.created_at DESC
@@ -234,9 +240,11 @@ router.post("/:id/commands", requireAuth, async (req, res) => {
 
     const created = await db.get(
       `
-        SELECT commands.*, projects.name AS project_name
+        SELECT commands.*, projects.name AS project_name,
+               command_groups.color AS group_color
         FROM commands
         LEFT JOIN projects ON commands.project_id = projects.id
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         WHERE commands.id = ?
       `,
       result.lastID,

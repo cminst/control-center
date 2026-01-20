@@ -120,6 +120,7 @@ export async function loadProjects() {
 export async function loadProjectDetail(projectId) {
   state.activeProjectId = projectId;
   state.activeProjectData = null;
+  state.activeProjectIsOwner = false;
   state.activeDetailType = "project";
   dom.projectCommandError.textContent = "";
   dom.projectCommandGallery.innerHTML = "";
@@ -150,6 +151,7 @@ export async function loadProjectDetail(projectId) {
     state.activeProjectData = project;
 
     const isOwner = Boolean(project.is_owner);
+    state.activeProjectIsOwner = isOwner;
     dom.projectCommandCard.classList.toggle("hidden", !isOwner);
     dom.projectShareButton.classList.toggle("hidden", !isOwner);
     if (dom.projectDeleteButton) {
@@ -158,7 +160,9 @@ export async function loadProjectDetail(projectId) {
 
     state.detailFallbackPath = "/projects";
 
-    renderCommandGallery(dom.projectCommandGallery, commands);
+    renderCommandGallery(dom.projectCommandGallery, commands, {
+      enableLinking: isOwner,
+    });
     if (isOwner) {
       applyPendingCommandCloneToProject(projectId);
     }
@@ -179,7 +183,9 @@ export async function loadProjectCommands(projectId) {
     const response = await fetch(`/api/projects/${projectId}/commands`);
     const data = await response.json();
     if (response.ok) {
-      renderCommandGallery(dom.projectCommandGallery, data);
+      renderCommandGallery(dom.projectCommandGallery, data, {
+        enableLinking: Boolean(state.activeProjectIsOwner),
+      });
     }
   } catch (error) {
     console.error("Load project commands error:", error);

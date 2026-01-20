@@ -17,8 +17,10 @@ router.get("/", requireAuth, async (req, res) => {
     const db = await getDb();
     const notes = await db.all(
       `
-        SELECT commands.*, GROUP_CONCAT(shared_users.username, ',') AS shared_with
+        SELECT commands.*, command_groups.color AS group_color,
+               GROUP_CONCAT(shared_users.username, ',') AS shared_with
         FROM commands
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         LEFT JOIN command_shares ON command_shares.command_id = commands.id
         LEFT JOIN users shared_users ON shared_users.id = command_shares.shared_with_user_id
         WHERE commands.owner_id = ?
@@ -48,9 +50,11 @@ router.get("/shared", requireAuth, async (req, res) => {
 
     const notes = await db.all(
       `
-        SELECT DISTINCT commands.*, owners.username AS owner_username
+        SELECT DISTINCT commands.*, command_groups.color AS group_color,
+               owners.username AS owner_username
         FROM commands
         JOIN users owners ON owners.id = commands.owner_id
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         JOIN command_shares ON command_shares.command_id = commands.id
         WHERE command_shares.shared_with_user_id = ?
           AND commands.owner_id != ?
@@ -75,11 +79,13 @@ router.get("/:id", requireAuth, async (req, res) => {
 
     const note = await db.get(
       `
-        SELECT commands.*, owners.username AS owner_username,
+        SELECT commands.*, command_groups.color AS group_color,
+               owners.username AS owner_username,
                GROUP_CONCAT(shared_users.username, ',') AS shared_with,
                CASE WHEN commands.owner_id = ? THEN 1 ELSE 0 END AS is_owner
         FROM commands
         JOIN users owners ON owners.id = commands.owner_id
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         LEFT JOIN command_shares ON command_shares.command_id = commands.id
         LEFT JOIN users shared_users ON shared_users.id = command_shares.shared_with_user_id
         WHERE commands.id = ?
@@ -140,8 +146,9 @@ router.post("/", requireAuth, async (req, res) => {
 
     const created = await db.get(
       `
-        SELECT commands.*
+        SELECT commands.*, command_groups.color AS group_color
         FROM commands
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         WHERE commands.id = ?
       `,
       result.lastID,
@@ -206,11 +213,13 @@ router.put("/:id", requireAuth, async (req, res) => {
 
     const updated = await db.get(
       `
-        SELECT commands.*, owners.username AS owner_username,
+        SELECT commands.*, command_groups.color AS group_color,
+               owners.username AS owner_username,
                GROUP_CONCAT(shared_users.username, ',') AS shared_with,
                CASE WHEN commands.owner_id = ? THEN 1 ELSE 0 END AS is_owner
         FROM commands
         JOIN users owners ON owners.id = commands.owner_id
+        LEFT JOIN command_groups ON commands.group_id = command_groups.id
         LEFT JOIN command_shares ON command_shares.command_id = commands.id
         LEFT JOIN users shared_users ON shared_users.id = command_shares.shared_with_user_id
         WHERE commands.id = ?

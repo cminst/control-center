@@ -2,6 +2,7 @@ export const state = {
   currentUser: null,
   activeProjectId: null,
   activeProjectData: null,
+  activeProjectIsOwner: false,
   activeCommandId: null,
   activeCommandData: null,
   activeNoteId: null,

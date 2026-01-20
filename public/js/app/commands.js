@@ -11,6 +11,7 @@ import {
 import { enhanceMathRendering, renderMarkdown } from "./markdown.js";
 import { setDetailEditButton } from "./detailControls.js";
 import { setActiveTab } from "./tabs.js";
+import { sortItemsByGroup } from "./grouping.js";
 
 export function initCommands() {
   setupAutosizeTextarea(dom.commandTextInput);
@@ -102,7 +103,9 @@ export async function loadCommands() {
     const data = await response.json();
     if (response.ok) {
       const soloCommands = data.filter((command) => !command.project_id);
-      renderCommandGallery(dom.commandGallery, soloCommands);
+      renderCommandGallery(dom.commandGallery, soloCommands, {
+        enableLinking: true,
+      });
     }
   } catch (error) {
     console.error("Load commands error:", error);
@@ -254,7 +257,8 @@ export function renderCommandGallery(container, commands, options = {}) {
     return;
   }
 
-  container.innerHTML = commands
+  const ordered = sortItemsByGroup(commands);
+  container.innerHTML = ordered
     .map((command) => renderCommandPreviewCard(command, options))
     .join("");
 }
@@ -268,9 +272,17 @@ export function renderCommandPreviewCard(command, options = {}) {
     options.showOwner && command.owner_username
       ? `Shared by ${command.owner_username}`
       : "";
+  const groupIdAttr = command.group_id
+    ? ` data-group-id="${command.group_id}"`
+    : "";
+  const groupColorAttr = command.group_color
+    ? ` data-group-color="${escapeHtml(command.group_color)}"`
+    : "";
+  const groupClass = command.group_id ? " grouped" : "";
+  const draggableAttr = options.enableLinking ? ' draggable="true"' : "";
 
   return `
-      <article class="command-preview-card" data-command-id="${command.id}">
+      <article class="command-preview-card${groupClass}" data-command-id="${command.id}"${groupIdAttr}${groupColorAttr}${draggableAttr}>
         <div class="command-preview-meta">${escapeHtml(createdAt)}</div>
         ${ownerLabel ? `<div class="command-preview-meta">${escapeHtml(ownerLabel)}</div>` : ""}
         <div class="command-preview">${escapeHtml(snippet)}</div>

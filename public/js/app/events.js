@@ -27,8 +27,11 @@ import {
   submitDelete,
   submitShare,
 } from "./modals.js";
+import { initDragLinking, shouldSuppressCardClick } from "./dragLinking.js";
 
 export function bindEvents() {
+  initDragLinking();
+
   if (dom.commandForm) {
     dom.commandForm.addEventListener("submit", handleCommandFormSubmit);
   }
@@ -70,6 +73,7 @@ export function bindEvents() {
 
   if (dom.commandGallery) {
     dom.commandGallery.addEventListener("click", (event) => {
+      if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-command-id]");
       if (!card) return;
       navigateTo(`/commands/${card.dataset.commandId}`);
@@ -78,6 +82,7 @@ export function bindEvents() {
 
   if (dom.noteGallery) {
     dom.noteGallery.addEventListener("click", (event) => {
+      if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-note-id]");
       if (!card) return;
       navigateTo(`/notes/${card.dataset.noteId}`);
@@ -86,6 +91,7 @@ export function bindEvents() {
 
   if (dom.sharedCommandList) {
     dom.sharedCommandList.addEventListener("click", (event) => {
+      if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-command-id]");
       if (!card) return;
       navigateTo(`/commands/${card.dataset.commandId}`);
@@ -94,6 +100,7 @@ export function bindEvents() {
 
   if (dom.sharedNoteList) {
     dom.sharedNoteList.addEventListener("click", (event) => {
+      if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-note-id]");
       if (!card) return;
       navigateTo(`/notes/${card.dataset.noteId}`);
@@ -102,6 +109,7 @@ export function bindEvents() {
 
   if (dom.projectCommandGallery) {
     dom.projectCommandGallery.addEventListener("click", (event) => {
+      if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-command-id]");
       if (!card) return;
       navigateTo(`/commands/${card.dataset.commandId}`);
@@ -110,6 +118,7 @@ export function bindEvents() {
 
   if (dom.projectGallery) {
     dom.projectGallery.addEventListener("click", (event) => {
+      if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-project-id]");
       if (!card) return;
       navigateTo(`/projects/${card.dataset.projectId}`);
@@ -118,6 +127,7 @@ export function bindEvents() {
 
   if (dom.sharedProjectList) {
     dom.sharedProjectList.addEventListener("click", (event) => {
+      if (shouldSuppressCardClick()) return;
       const card = event.target.closest("[data-project-id]");
       if (!card) return;
       navigateTo(`/projects/${card.dataset.projectId}`);
