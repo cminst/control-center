@@ -33,6 +33,14 @@ function scrollToTopInstant() {
   window.scrollTo(0, 0);
 }
 
+function scrollToBottomSmooth() {
+  const bottom = Math.max(
+    document.body.scrollHeight,
+    document.documentElement.scrollHeight,
+  );
+  window.scrollTo({ top: bottom, behavior: "smooth" });
+}
+
 export function bindEvents() {
   initDragLinking();
 
@@ -73,6 +81,33 @@ export function bindEvents() {
     });
 
     dom.commandDetailCard.addEventListener("input", handleNoteEditInput);
+
+    dom.commandDetailCard.addEventListener("keydown", (event) => {
+      const isNoteEditing =
+        state.activeDetailType === "note" &&
+        !state.isPreviewingNote &&
+        state.activeNoteData?.is_owner;
+      if (!isNoteEditing) return;
+      if (!(event.metaKey || event.ctrlKey) || event.key !== "Enter") return;
+      const target = event.target;
+      if (!target || target.id !== "note-edit-text") return;
+      event.preventDefault();
+      toggleNotePreview();
+      window.setTimeout(scrollToBottomSmooth, 0);
+    });
+
+    dom.commandDetailCard.addEventListener("dblclick", (event) => {
+      const isNotePreviewing =
+        state.activeDetailType === "note" &&
+        state.isPreviewingNote &&
+        state.activeNoteData?.is_owner;
+      if (!isNotePreviewing) return;
+      const target = event.target;
+      if (!target || !target.closest(".note-rendered")) return;
+      event.preventDefault();
+      toggleNotePreview();
+      window.setTimeout(scrollToBottomSmooth, 0);
+    });
   }
 
   if (dom.commandGallery) {

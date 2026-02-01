@@ -166,6 +166,8 @@ export function renderNoteDetail() {
       if (input) {
         setupAutosizeTextarea(input);
         input.focus();
+        // When entering edit mode, jump the textarea to the bottom immediately.
+        input.scrollTop = input.scrollHeight;
       }
     }, 0);
   }
