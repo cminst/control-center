@@ -37,9 +37,29 @@ export function sizeTextarea(textarea) {
 
 export function formatDate(dateString) {
   if (!dateString) return "";
-  const date = new Date(dateString);
+  const normalized = normalizeDateInput(dateString);
+  const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return dateString;
   return date.toLocaleString();
+}
+
+function normalizeDateInput(value) {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+
+  const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(trimmed);
+  if (hasTimezone) return trimmed;
+
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(trimmed)) {
+    return `${trimmed.replace(" ", "T")}Z`;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(trimmed)) {
+    return `${trimmed}Z`;
+  }
+
+  return trimmed;
 }
 
 export function truncateCommandText(text, limit) {
