@@ -13,8 +13,25 @@ import { setDetailEditButton } from "./detailControls.js";
 import { setActiveTab } from "./tabs.js";
 import { sortItemsByGroup } from "./grouping.js";
 
+const COMMAND_GRID_MIN_WIDTH = 220;
+const COMMAND_GRID_WRAP_THRESHOLD = 0.3;
+const commandGridRegistry = new Set();
+let commandGridResizeTimer = null;
+
 export function initCommands() {
   setupAutosizeTextarea(dom.commandTextInput);
+  window.addEventListener(
+    "resize",
+    () => {
+      window.clearTimeout(commandGridResizeTimer);
+      commandGridResizeTimer = window.setTimeout(() => {
+        commandGridRegistry.forEach((container) => {
+          scheduleCommandGridAdjust(container);
+        });
+      }, 150);
+    },
+    { passive: true },
+  );
 }
 
 export async function handleCommandFormSubmit(event) {
@@ -254,6 +271,7 @@ export function renderCommandGallery(container, commands, options = {}) {
       `<div class="empty-state">${escapeHtml(
         options.emptyMessage || "No commands yet.",
       )}</div>`;
+    container.style.gridTemplateColumns = "";
     return;
   }
 
@@ -261,6 +279,7 @@ export function renderCommandGallery(container, commands, options = {}) {
   container.innerHTML = ordered
     .map((command) => renderCommandPreviewCard(command, options))
     .join("");
+  registerCommandGrid(container);
 }
 
 export function renderCommandPreviewCard(command, options = {}) {
@@ -288,6 +307,80 @@ export function renderCommandPreviewCard(command, options = {}) {
         <div class="command-preview">${escapeHtml(snippet)}</div>
       </article>
     `;
+}
+
+function registerCommandGrid(container) {
+  if (!container || commandGridRegistry.has(container)) {
+    scheduleCommandGridAdjust(container);
+    return;
+  }
+
+  commandGridRegistry.add(container);
+  scheduleCommandGridAdjust(container);
+}
+
+function scheduleCommandGridAdjust(container) {
+  if (!container) return;
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      adjustCommandGridColumns(container);
+    });
+  });
+}
+
+function adjustCommandGridColumns(container) {
+  const previews = Array.from(
+    container.querySelectorAll(".command-preview"),
+  );
+  if (previews.length === 0) {
+    container.style.gridTemplateColumns = "";
+    return;
+  }
+
+  const maxColumns = getMaxColumns(container);
+  const targetColumns = findBestColumns(container, previews, maxColumns);
+  container.style.gridTemplateColumns = `repeat(${targetColumns}, minmax(${COMMAND_GRID_MIN_WIDTH}px, 1fr))`;
+}
+
+function getMaxColumns(container) {
+  const styles = window.getComputedStyle(container);
+  const gap =
+    parseFloat(styles.columnGap || styles.gap || styles.gridColumnGap) || 0;
+  const width = container.clientWidth || container.getBoundingClientRect().width;
+  const total = Math.max(1, Math.floor((width + gap) / (COMMAND_GRID_MIN_WIDTH + gap)));
+  return total;
+}
+
+function findBestColumns(container, previews, maxColumns) {
+  let columns = Math.max(1, maxColumns);
+  while (columns > 1) {
+    container.style.gridTemplateColumns = `repeat(${columns}, minmax(${COMMAND_GRID_MIN_WIDTH}px, 1fr))`;
+    const wrapRatio = getWrapRatio(previews);
+    if (wrapRatio <= COMMAND_GRID_WRAP_THRESHOLD) {
+      return columns;
+    }
+    columns -= 1;
+  }
+  return 1;
+}
+
+function getWrapRatio(previews) {
+  const wrappedCount = previews.reduce((count, preview) => {
+    const lineHeight = getLineHeight(preview);
+    const lines = lineHeight > 0 ? Math.round(preview.scrollHeight / lineHeight) : 1;
+    return count + (lines > 1 ? 1 : 0);
+  }, 0);
+  return wrappedCount / previews.length;
+}
+
+function getLineHeight(element) {
+  const styles = window.getComputedStyle(element);
+  const lineHeight = parseFloat(styles.lineHeight);
+  if (!Number.isNaN(lineHeight) && lineHeight > 0) {
+    return lineHeight;
+  }
+  const fontSize = parseFloat(styles.fontSize) || 16;
+  return fontSize * 1.2;
 }
 
 export function renderCommandsList(container, commands, options = {}) {
