@@ -15,7 +15,7 @@
     --soft-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
     --border-radius: 14px;
     --transition: all 0.2s ease;
-    --ui-font: "Inter", "Source Sans 3", sans-serif;
+    --ui-font: "Inter", "Atkinson Hyperlegible", sans-serif;
 }
 
 * {
@@ -25,7 +25,7 @@
 }
 
 body {
-    font-family: "Plus Jakarta Sans", "Source Sans 3", sans-serif;
+    font-family: "Plus Jakarta Sans", "Atkinson Hyperlegible", sans-serif;
     line-height: 1.6;
     color: var(--dark-color);
     background-color: var(--light-color);
@@ -45,7 +45,7 @@ body.auth-view {
 }
 
 h1 {
-    font-family: "Lexend", "Plus Jakarta Sans", "Source Sans 3", sans-serif;
+    font-family: "Lexend", "Plus Jakarta Sans", "Atkinson Hyperlegible", sans-serif;
     font-size: 50px;
     color: var(--dark-color);
     font-weight: 500;
@@ -54,7 +54,7 @@ h1 {
 
 h2,
 h3 {
-    font-family: "Plus Jakarta Sans", "Source Sans 3", sans-serif;
+    font-family: "Plus Jakarta Sans", "Atkinson Hyperlegible", sans-serif;
     font-weight: 500;
     color: var(--dark-color);
 }
@@ -814,7 +814,7 @@ input:checked + .slider:before {
 }
 
 .command-preview {
-    font-family: "Source Sans 3", var(--ui-font);
+    font-family: "Atkinson Hyperlegible", var(--ui-font);
     font-size: 1rem;
     color: var(--dark-color);
     max-width: 100%;
@@ -1003,7 +1003,7 @@ h3 + .project-grid {
 .note-rendered.markdown-body h2,
 .note-rendered.markdown-body h3,
 .note-rendered.markdown-body h4 {
-    font-family: "Plus Jakarta Sans", "Source Sans 3", sans-serif;
+    font-family: "Plus Jakarta Sans", "Atkinson Hyperlegible", sans-serif;
     font-weight: 600;
     color: var(--dark-color);
     margin: 0.8rem 0 0.4rem;
